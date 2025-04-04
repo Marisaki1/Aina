@@ -1,0 +1,7 @@
+rm -rf .git
+git init
+git add .
+git commit -m "Clean commit without secrets"
+git branch -M main
+git remote add origin https://github.com/Marisaki1/Aina.git
+git push -u origin main --force
