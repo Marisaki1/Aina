@@ -17,16 +17,24 @@ if not TOKEN:
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Ensure data directories exist
+# Ensure directories exist
 os.makedirs("data", exist_ok=True)
 os.makedirs("assets/images/alarms", exist_ok=True)
+os.makedirs("models", exist_ok=True)  # For storing GGUF model files
 
 # Load all cogs (commands & events)
 async def load_cogs():
     try:
+        # Load alarm cogs
         await bot.load_extension("cogs.alarms.alarms")
         await bot.load_extension("cogs.alarms.scheduler")
+        
+        # Load conversation cog
+        await bot.load_extension("cogs.conversation.conversation")
+        
+        # Load events cog
         await bot.load_extension("cogs.events")
+        
         print("✅ All cogs loaded successfully!")
     except Exception as e:
         print(f"❌ Error loading cogs: {e}")
@@ -41,7 +49,7 @@ async def on_ready():
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.listening,
-            name="alarm commands (!help)"
+            name="commands (!help)"
         )
     )
 
