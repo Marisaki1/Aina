@@ -29,6 +29,7 @@ class PlayerManager:
             "xp": 0,
             "gold": 0,
             "inventory": [],
+            "items": [],  # For backward compatibility
             "quests_started": 0,
             "quests_completed": 0,
             "achievements": [],
@@ -65,7 +66,7 @@ class PlayerManager:
         
         # Update XP and level
         player["xp"] += xp
-        new_level = 1 + int((player["xp"] // 100) ** 0.5)
+        new_level = 1 + int((player["xp"] / 100) ** 0.5)
         if new_level > player["level"]:
             player["level"] = new_level
         
@@ -74,11 +75,20 @@ class PlayerManager:
 
     def get_player_inventory(self, user_id):
         player = self.get_player_data(user_id)
-        return player.get("inventory", []) if player else []
+        if not player:
+            return []
+            
+        # Check both inventory and items fields for compatibility
+        inventory = player.get("inventory", [])
+        items = player.get("items", [])
+        
+        # Prefer inventory if it exists, otherwise use items
+        return inventory if inventory else items
 
     def update_inventory(self, user_id, items):
         player = self.get_player_data(user_id) or self.create_player(user_id, str(user_id))
         player["inventory"] = items
+        player["items"] = items  # Keep both fields in sync
         return self.save_player_data(user_id, player)
 
     def add_achievement(self, user_id, achievement):
