@@ -26,6 +26,8 @@ os.makedirs("models", exist_ok=True)  # For storing GGUF model files
 async def load_cogs():
     try:
         # Load alarm cogs
+        
+        await bot.load_extension("cogs.help.help")
         await bot.load_extension("cogs.alarms.alarms")
         await bot.load_extension("cogs.alarms.scheduler")
         
