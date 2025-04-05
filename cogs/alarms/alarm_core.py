@@ -1,12 +1,82 @@
+import random
 import discord
 from discord.ext import commands
-from .alarm_core import AlarmManager
 import re
 import os
 from datetime import datetime
 import pytz
-import random
+import json
 
+class AlarmManager:
+    def __init__(self):
+        self.alarms = {}
+        self.data_file = "data/alarms.json"
+        self._load_alarms()
+    
+    def _load_alarms(self):
+        """Load alarms from the data file"""
+        try:
+            if os.path.exists(self.data_file):
+                with open(self.data_file, 'r') as f:
+                    self.alarms = json.load(f)
+        except Exception as e:
+            print(f"Error loading alarms: {e}")
+            self.alarms = {}
+    
+    def _save_alarms(self):
+        """Save alarms to the data file"""
+        try:
+            os.makedirs(os.path.dirname(self.data_file), exist_ok=True)
+            with open(self.data_file, 'w') as f:
+                json.dump(self.alarms, f, indent=4)
+        except Exception as e:
+            print(f"Error saving alarms: {e}")
+    
+    def add_alarm(self, guild_id, alarm_data):
+        """Add a new alarm for a guild"""
+        if guild_id not in self.alarms:
+            self.alarms[guild_id] = []
+        
+        self.alarms[guild_id].append(alarm_data)
+        self._save_alarms()
+        return True
+    
+    def update_alarm(self, guild_id, index, alarm_data):
+        """Update an existing alarm"""
+        if guild_id in self.alarms and 0 <= index < len(self.alarms[guild_id]):
+            self.alarms[guild_id][index] = alarm_data
+            self._save_alarms()
+            return True
+        return False
+    
+    def remove_alarm(self, guild_id, index):
+        """Remove an alarm by index"""
+        if guild_id in self.alarms and 0 <= index < len(self.alarms[guild_id]):
+            self.alarms[guild_id].pop(index)
+            self._save_alarms()
+            return True
+        return False
+    
+    def list_alarms(self, guild_id):
+        """List all alarms for a guild"""
+        return self.alarms.get(guild_id, [])
+    
+    def check_alarms(self, current_time_str):
+        """Check if any alarms should be triggered"""
+        triggered_alarms = {}
+        
+        for guild_id, alarms in self.alarms.items():
+            triggered_alarms[guild_id] = []
+            
+            for index, alarm in enumerate(alarms):
+                if alarm.get('time') == current_time_str:
+                    triggered_alarms[guild_id].append((index, alarm))
+                    
+                    # If not a repeating alarm, remove it after triggering
+                    if alarm.get('repeat', 'once') == 'once':
+                        self.remove_alarm(guild_id, index)
+        
+        return triggered_alarms
 class Alarms(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
