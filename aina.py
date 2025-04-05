@@ -21,12 +21,12 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 os.makedirs("data", exist_ok=True)
 os.makedirs("assets/images/alarms", exist_ok=True)
 os.makedirs("models", exist_ok=True)  # For storing GGUF model files
+os.makedirs("data/quests", exist_ok=True)  # For quest system data
 
 # Load all cogs (commands & events)
 async def load_cogs():
     try:
         # Load alarm cogs
-        
         await bot.load_extension("cogs.help.help")
         await bot.load_extension("cogs.alarms.alarms")
         await bot.load_extension("cogs.alarms.scheduler")
@@ -36,6 +36,9 @@ async def load_cogs():
         
         # Load events cog
         await bot.load_extension("cogs.events")
+        
+        # Load quest cogs
+        await bot.load_extension("cogs.quests.quests")
         
         print("✅ All cogs loaded successfully!")
     except Exception as e:

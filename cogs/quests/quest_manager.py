@@ -22,13 +22,30 @@ class QuestManager:
             print(f"Error saving quest: {e}")
             return False
     
+    def get_all_quests(self):
+        """Get all available quests"""
+        quests = []
+        try:
+            for file in os.listdir(f"{self.base_path}/new"):
+                if file.endswith(".json"):
+                    with open(f"{self.base_path}/new/{file}") as f:
+                        quest = json.load(f)
+                        quests.append(quest)
+            return quests
+        except Exception as e:
+            print(f"Error listing quests: {e}")
+            return []
+    
     def get_quest_by_name(self, name):
         for file in os.listdir(f"{self.base_path}/new"):
             if file.endswith(".json"):
-                with open(f"{self.base_path}/new/{file}") as f:
-                    quest = json.load(f)
-                    if quest["name"].lower() == name.lower():
-                        return quest
+                try:
+                    with open(f"{self.base_path}/new/{file}") as f:
+                        quest = json.load(f)
+                        if quest["name"].lower() == name.lower():
+                            return quest
+                except Exception as e:
+                    print(f"Error reading quest file: {e}")
         return None
     
     def start_quest(self, quest_data):
@@ -41,13 +58,30 @@ class QuestManager:
             print(f"Error starting quest: {e}")
             return False
     
+    def get_active_quests(self):
+        """Get all active quests"""
+        quests = []
+        try:
+            for file in os.listdir(f"{self.base_path}/ongoing"):
+                if file.endswith(".json"):
+                    with open(f"{self.base_path}/ongoing/{file}") as f:
+                        quest = json.load(f)
+                        quests.append(quest)
+            return quests
+        except Exception as e:
+            print(f"Error listing active quests: {e}")
+            return []
+    
     def get_user_active_quest(self, user_id):
         for file in os.listdir(f"{self.base_path}/ongoing"):
             if file.endswith(".json"):
-                with open(f"{self.base_path}/ongoing/{file}") as f:
-                    quest = json.load(f)
-                    if user_id in quest["participants"]:
-                        return quest
+                try:
+                    with open(f"{self.base_path}/ongoing/{file}") as f:
+                        quest = json.load(f)
+                        if str(user_id) in [str(p) for p in quest["participants"]]:
+                            return quest
+                except Exception as e:
+                    print(f"Error reading quest file: {e}")
         return None
     
     def add_quest_action(self, quest_id, action_data):
@@ -80,6 +114,21 @@ class QuestManager:
             return True
         except Exception as e:
             print(f"Error completing quest: {e}")
+            return False
+            
+    def cancel_quest(self, quest_id):
+        """Cancel an ongoing quest and return it to available quests"""
+        try:
+            # Get the quest data
+            src = f"{self.base_path}/ongoing/{quest_id}.json"
+            with open(src) as f:
+                quest = json.load(f)
+            
+            # Remove the active quest file
+            os.remove(src)
+            return True
+        except Exception as e:
+            print(f"Error canceling quest: {e}")
             return False
 
 class PlayerManager:

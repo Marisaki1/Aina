@@ -733,3 +733,6 @@ class Quests(commands.Cog):
             )
         
         await ctx.send(embed=embed)
+
+async def setup(bot):
+    await bot.add_cog(Quests(bot))
