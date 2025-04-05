@@ -30,6 +30,8 @@ async def load_cogs():
         await bot.load_extension("cogs.help.help")
         await bot.load_extension("cogs.alarms.alarms")
         await bot.load_extension("cogs.alarms.scheduler")
+        # Load quest cogs
+        await bot.load_extension("cogs.quests.quests")
         
         # Load conversation cog
         await bot.load_extension("cogs.conversation.conversation")
@@ -37,8 +39,6 @@ async def load_cogs():
         # Load events cog
         await bot.load_extension("cogs.events")
         
-        # Load quest cogs
-        await bot.load_extension("cogs.quests.quests")
         
         print("✅ All cogs loaded successfully!")
     except Exception as e:
