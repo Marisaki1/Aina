@@ -31,6 +31,19 @@ class Help(commands.Cog):
                 "`!endchat` - End your conversation with Aina"
             )
             embed.add_field(name="💬 Conversation Commands", value=chat_commands, inline=False)
+
+
+            # Add to the main help command
+            quest_commands = (
+                "`!quests create` - Create new quest\n"
+                "`!quests list` - List available quests\n"
+                "`!quests start` - Start a quest with party\n"
+                "`!quests action` - Log quest progress\n"
+                "`!quests complete` - Finish active quest\n"
+                "`!quests inventory` - View your items\n"
+                "`!quests profile` - Player statistics"
+            )
+            embed.add_field(name="⚔️ Quest System Commands", value=quest_commands, inline=False)
             
             help_commands = "`!help [command]` - Show detailed help for a specific command"
             embed.add_field(name="❓ Help Commands", value=help_commands, inline=False)
