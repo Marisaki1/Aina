@@ -497,6 +497,7 @@ class Quests(commands.Cog):
             ))
         
         # Award rewards to all participants
+        # Update the rewards section in complete_quest method
         rewards_given = []
         for user_id in active_quest["participants"]:
             user = self.bot.get_user(user_id)
@@ -507,12 +508,15 @@ class Quests(commands.Cog):
             gold = active_quest["rewards"]["gold"]
             xp = active_quest["rewards"]["xp"]
             
-            reward_success = self.player_manager.add_rewards(user_id, gold, xp)
-            if reward_success:
-                rewards_given.append(f"{user.mention}: +{gold} 🪙, +{xp} ✨")
-            
-            # Update quest completion count
-            self.player_manager.update_player_quest_count(user_id, "completed")
+            try:
+                reward_success = self.player_manager.add_rewards(user_id, gold, xp)
+                if reward_success:
+                    rewards_given.append(f"{user.mention}: +{gold} 🪙, +{xp} ✨")
+                
+                # Update quest completion count
+                self.player_manager.update_player_quest_count(user_id, "completed")
+            except Exception as e:
+                print(f"Error giving rewards to {user_id}: {e}")
         
         # Create a completion embed
         embed = create_embed(
@@ -568,12 +572,19 @@ class Quests(commands.Cog):
             ))
         
         # Cancel the quest
-        cancel_success = self.quest_manager.cancel_quest(active_quest["quest_id"])
-        
-        if not cancel_success:
+        try:
+            cancel_success = self.quest_manager.cancel_quest(active_quest["quest_id"])
+            
+            if not cancel_success:
+                return await ctx.send(embed=create_embed(
+                    title="❌ Failed to Cancel Quest",
+                    description="There was an error cancelling the quest. Please try again.",
+                    color=discord.Color.red()
+                ))
+        except Exception as e:
             return await ctx.send(embed=create_embed(
-                title="❌ Failed to Cancel Quest",
-                description="There was an error cancelling the quest. Please try again.",
+                title="❌ Error Cancelling Quest",
+                description=f"An error occurred: {str(e)}",
                 color=discord.Color.red()
             ))
         
@@ -672,9 +683,11 @@ class Quests(commands.Cog):
         
         # Calculate level based on XP
         xp = player_data.get("xp", 0)
-        level = 1 + int((xp / 100) ** 0.5)  # Simple level formula
+        level = max(1, 1 + int((xp / 100) ** 0.5))  # Ensure minimum level 1
         next_level_xp = ((level) ** 2) * 100
-        xp_progress = min(1.0, (xp - ((level-1) ** 2) * 100) / (next_level_xp - ((level-1) ** 2) * 100))
+        prev_level_xp = ((level-1) ** 2) * 100
+        xp_needed = next_level_xp - prev_level_xp
+        xp_progress = min(1.0, (xp - prev_level_xp) / max(1, xp_needed)) 
         
         # Create progress bar
         progress_bar_length = 10

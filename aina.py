@@ -39,6 +39,9 @@ async def load_cogs():
         
         # Load quest cogs
         await bot.load_extension("cogs.quests.quests")
+        await bot.load_extension("cogs.quests.player_manager")
+        await bot.load_extension("cogs.quests.quest_manager")
+        await bot.load_extension("cogs.quests.utils")
         
         print("✅ All cogs loaded successfully!")
     except Exception as e:

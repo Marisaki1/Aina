@@ -82,8 +82,9 @@ class PlayerManager:
         inventory = player.get("inventory", [])
         items = player.get("items", [])
         
-        # Prefer inventory if it exists, otherwise use items
-        return inventory if inventory else items
+        # Return combined inventory, removing duplicates
+        combined = inventory + [item for item in items if item not in inventory]
+        return combined
 
     def update_inventory(self, user_id, items):
         player = self.get_player_data(user_id) or self.create_player(user_id, str(user_id))

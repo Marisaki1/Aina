@@ -73,7 +73,7 @@ class QuestManager:
             return []
     
     def get_user_active_quest(self, user_id):
-        user_id_str = str(user_id)  # Convert to string to ensure consistent comparison
+        user_id_str = str(user_id)  # Ensure user_id is a string for comparison
         try:
             for file in os.listdir(os.path.join(self.base_path, "ongoing")):
                 if file.endswith(".json"):
