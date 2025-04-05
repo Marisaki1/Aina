@@ -1,0 +1,13 @@
+{
+    "id": "Training-Exercise-74710d73",
+    "name": "Training Exercise",
+    "description": "Its time to papayat betch",
+    "difficulty": "Normal",
+    "duration": "01:00",
+    "creator_id": 113974200267571201,
+    "created_at": "2025-04-05T15:32:37.723331",
+    "rewards": {
+        "gold": 100,
+        "xp": 200
+    }
+}

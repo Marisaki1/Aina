@@ -25,4 +25,4 @@ ENV/
 *.swo
 
 # Data files
-data/
+#data/
