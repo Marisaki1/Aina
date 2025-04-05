@@ -21,23 +21,42 @@ class PlayerManager:
             print(f"Error loading player data: {e}")
             return None
 
-    def create_player(self, user_id, username):
-        default_data = {
+    def create_player(self, user_id, username=None):
+        """Create a new player profile"""
+        timestamp = datetime.now().isoformat()
+        player_data = {
             "user_id": str(user_id),
-            "username": username,
+            "username": username or str(user_id),
             "level": 1,
             "xp": 0,
             "gold": 0,
             "inventory": [],
-            "items": [],  # For backward compatibility
+            "items": [],
             "quests_started": 0,
             "quests_completed": 0,
             "achievements": [],
-            "created_at": datetime.now().isoformat(),
-            "last_active": datetime.now().isoformat()
+            "location": "Town of Rivermeet",  # Add default location
+            "created_at": timestamp,
+            "last_active": timestamp
         }
-        self.save_player_data(user_id, default_data)
-        return default_data
+        
+        # Save to file
+        self.save_player_data(user_id, player_data)
+        return player_data
+    
+    def update_player_location(self, user_id, location):
+        """Update a player's location"""
+        player_data = self.get_player_data(user_id)
+        
+        if not player_data:
+            player_data = self.create_player(user_id)
+        
+        player_data["location"] = location
+        player_data["last_active"] = datetime.now().isoformat()
+        
+        # Save updated data
+        self.save_player_data(user_id, player_data)
+        return player_data
 
     def save_player_data(self, user_id, data):
         path = self._get_player_path(user_id)

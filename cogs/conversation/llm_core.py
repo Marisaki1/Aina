@@ -1,10 +1,10 @@
 import os
 import json
-from llama_cpp import Llama
+from llama_cpp import Llama # type: ignore
 import time
 
 CONVERSATION_HISTORY_FILE = "data/conversations.json"
-DEFAULT_MODEL_PATH = "models/your_model.gguf"  # Update this with your actual GGUF filename
+DEFAULT_MODEL_PATH = "models/deepseek-coder-1.3b-base.Q8_0.gguf"  # Update this with your actual GGUF filename
 HISTORY_LIMIT = 10  # Maximum number of messages to keep in history per user
 
 class LLMManager:

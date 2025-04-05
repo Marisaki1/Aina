@@ -550,6 +550,8 @@ class Quests(commands.Cog):
         
         await ctx.send(embed=embed)
     
+    # Replace the cancel_quest method in cogs/quests/quests.py with this:
+
     @quests.command(name="cancel")
     async def cancel_quest(self, ctx):
         """Cancel the active quest"""
@@ -571,9 +573,10 @@ class Quests(commands.Cog):
                 color=discord.Color.red()
             ))
         
-        # Cancel the quest
+        # Cancel the quest and move it to failed
         try:
-            cancel_success = self.quest_manager.cancel_quest(active_quest["quest_id"])
+            cancel_time = datetime.now()
+            cancel_success = self.quest_manager.fail_quest(active_quest["quest_id"], cancel_time)
             
             if not cancel_success:
                 return await ctx.send(embed=create_embed(
@@ -591,7 +594,7 @@ class Quests(commands.Cog):
         # Create a cancellation embed
         embed = create_embed(
             title=f"🚫 Quest Cancelled: {active_quest['name']}",
-            description="The quest has been cancelled and returned to the available quests list.",
+            description="The quest has been cancelled.",
             color=discord.Color.red()
         )
         
@@ -745,6 +748,364 @@ class Quests(commands.Cog):
                 inline=False
             )
         
+        await ctx.send(embed=embed)
+
+    # Add this inside the Quests class in cogs/quests/quest.py, alongside other commands
+
+    @quests.command(name="records", aliases=["history"])
+    async def quest_records(self, ctx, filter_type=None, *, quest_name=None):
+        """View your quest history with optional filters"""
+        user_id = ctx.author.id
+        
+        # Get all completed quests
+        completed_quests = self._get_user_completed_quests(user_id)
+        
+        # Get all failed/canceled quests
+        failed_quests = self._get_user_failed_quests(user_id) 
+        
+        if quest_name and filter_type != "select":
+            return await ctx.send(embed=create_embed(
+                title="❌ Invalid Command Usage",
+                description="Quest name can only be used with `select` filter. Try `!quests records select <quest_name>`.",
+                color=discord.Color.red()
+            ))
+        
+        # Handle specific quest details view
+        if filter_type == "select" and quest_name:
+            return await self._display_quest_details(ctx, user_id, quest_name)
+        
+        # Apply filters
+        if filter_type == "completed":
+            quests_to_display = completed_quests
+            title = "✅ Completed Quests"
+            empty_message = "You haven't completed any quests yet."
+        elif filter_type == "failed":
+            quests_to_display = failed_quests
+            title = "❌ Failed/Cancelled Quests"
+            empty_message = "You haven't failed or cancelled any quests."
+        else:
+            quests_to_display = completed_quests + failed_quests
+            title = "📜 Quest History"
+            empty_message = "You haven't participated in any quests yet."
+            
+        # Sort all quests by date (most recent first)
+        quests_to_display.sort(key=lambda q: q.get("completion_time", q.get("cancelled_time", "")), reverse=True)
+        
+        if not quests_to_display:
+            return await ctx.send(embed=create_embed(
+                title=title,
+                description=empty_message,
+                color=discord.Color.blue()
+            ))
+        
+        # Create paginated view of quests (20 per page)
+        page = 0
+        max_page = (len(quests_to_display) - 1) // 20
+        
+        # Function to generate embed for the current page
+        def get_page_embed(page_num):
+            start_idx = page_num * 20
+            end_idx = min(start_idx + 20, len(quests_to_display))
+            
+            embed = create_embed(
+                title=title,
+                description=f"Showing quests {start_idx+1}-{end_idx} of {len(quests_to_display)}",
+                color=discord.Color.gold()
+            )
+            
+            # Group quests by difficulty for better organization
+            quests_by_difficulty = {
+                "Easy": [],
+                "Normal": [],
+                "Hard": [],
+                "Lunatic": []
+            }
+            
+            for quest in quests_to_display[start_idx:end_idx]:
+                difficulty = quest.get("difficulty", "Normal")
+                quests_by_difficulty[difficulty].append(quest)
+            
+            # Add fields for each difficulty that has quests
+            for difficulty, diff_quests in quests_by_difficulty.items():
+                if diff_quests:
+                    quest_list = ""
+                    for q in diff_quests:
+                        # Format the quest entry
+                        quest_time = q.get("completion_time") or q.get("cancelled_time", "")
+                        if quest_time:
+                            quest_time = datetime.fromisoformat(quest_time)
+                            time_str = f"<t:{int(quest_time.timestamp())}:R>"
+                        else:
+                            time_str = "Unknown time"
+                        
+                        status = "✅" if "completion_time" in q else "❌"
+                        quest_list += f"{status} **{q['name']}** - {time_str}\n"
+                    
+                    embed.add_field(
+                        name=f"{DIFFICULTY_EMOJIS[difficulty]} {difficulty} ({len(diff_quests)})",
+                        value=quest_list or "No quests at this difficulty.",
+                        inline=False
+                    )
+            
+            embed.set_footer(text=f"Page {page_num+1}/{max_page+1} • Use '!quests records select <quest_name>' to view details")
+            return embed
+        
+        # Send the first page
+        message = await ctx.send(embed=get_page_embed(page))
+        
+        # If there's only one page, don't add reactions
+        if max_page == 0:
+            return
+        
+        # Add pagination reactions
+        pagination_emojis = ["⬅️", "➡️"]
+        for emoji in pagination_emojis:
+            await message.add_reaction(emoji)
+        
+        # Define a check for the reaction
+        def check(reaction, user):
+            return (
+                user == ctx.author
+                and reaction.message.id == message.id
+                and str(reaction.emoji) in pagination_emojis
+            )
+        
+        # Wait for reactions and paginate
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for("reaction_add", timeout=60.0, check=check)
+                
+                # Handle navigation
+                if str(reaction.emoji) == "⬅️" and page > 0:
+                    page -= 1
+                elif str(reaction.emoji) == "➡️" and page < max_page:
+                    page += 1
+                else:
+                    await message.remove_reaction(str(reaction.emoji), user)
+                    continue
+                    
+                # Update the embed with the new page
+                await message.edit(embed=get_page_embed(page))
+                await message.remove_reaction(str(reaction.emoji), user)
+                
+            except asyncio.TimeoutError:
+                # Stop listening for reactions after timeout
+                break
+
+    # Add these helper methods to the Quests class
+
+    def _get_user_completed_quests(self, user_id):
+        """Get all completed quests for a user"""
+        completed_quests = []
+        try:
+            completed_dir = os.path.join(self.quest_manager.base_path, "completed")
+            for file in os.listdir(completed_dir):
+                if file.endswith(".json"):
+                    try:
+                        with open(os.path.join(completed_dir, file)) as f:
+                            quest = json.load(f)
+                            if str(user_id) in [str(p) for p in quest.get("participants", [])]:
+                                completed_quests.append(quest)
+                    except Exception as e:
+                        print(f"Error reading completed quest file: {e}")
+        except Exception as e:
+            print(f"Error accessing completed quests directory: {e}")
+        return completed_quests
+
+    def _get_user_failed_quests(self, user_id):
+        """Get all failed/cancelled quests for a user"""
+        failed_quests = []
+        try:
+            failed_dir = os.path.join(self.quest_manager.base_path, "failed")
+            # Create the directory if it doesn't exist
+            os.makedirs(failed_dir, exist_ok=True)
+            
+            for file in os.listdir(failed_dir):
+                if file.endswith(".json"):
+                    try:
+                        with open(os.path.join(failed_dir, file)) as f:
+                            quest = json.load(f)
+                            if str(user_id) in [str(p) for p in quest.get("participants", [])]:
+                                failed_quests.append(quest)
+                    except Exception as e:
+                        print(f"Error reading failed quest file: {e}")
+        except Exception as e:
+            print(f"Error accessing failed quests directory: {e}")
+        return failed_quests
+
+    async def _display_quest_details(self, ctx, user_id, quest_name):
+        """Display detailed information about a specific quest, including actions taken"""
+        # Search in both completed and failed quests
+        all_quests = self._get_user_completed_quests(user_id) + self._get_user_failed_quests(user_id)
+        
+        # Find the quest by name (case-insensitive)
+        target_quest = None
+        for quest in all_quests:
+            if quest["name"].lower() == quest_name.lower():
+                target_quest = quest
+                break
+        
+        if not target_quest:
+            return await ctx.send(embed=create_embed(
+                title="❓ Quest Not Found",
+                description=f"No quest found with the name '{quest_name}' in your history.",
+                color=discord.Color.red()
+            ))
+        
+        # Create a rich embed to display quest details
+        is_completed = "completion_time" in target_quest
+        
+        embed = create_embed(
+            title=f"{'✅' if is_completed else '❌'} {target_quest['name']}",
+            description=target_quest.get("description", "No description available."),
+            color=DIFFICULTY_COLORS[target_quest.get("difficulty", "Normal")]
+        )
+        
+        # Add basic quest info
+        embed.add_field(
+            name="📊 Quest Info",
+            value=(
+                f"**Difficulty:** {DIFFICULTY_EMOJIS[target_quest.get('difficulty', 'Normal')]} {target_quest.get('difficulty', 'Normal')}\n"
+                f"**Status:** {'Completed' if is_completed else 'Failed/Cancelled'}\n"
+                f"**Participants:** {len(target_quest.get('participants', []))}"
+            ),
+            inline=True
+        )
+        
+        # Add timing information
+        start_time = datetime.fromisoformat(target_quest.get("start_time", datetime.now().isoformat()))
+        end_time_field = "completion_time" if is_completed else "cancelled_time"
+        end_time = datetime.fromisoformat(target_quest.get(end_time_field, datetime.now().isoformat()))
+        
+        # Calculate duration
+        duration = end_time - start_time
+        hours, remainder = divmod(duration.total_seconds(), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        
+        embed.add_field(
+            name="⏱️ Timeline",
+            value=(
+                f"**Started:** <t:{int(start_time.timestamp())}:R>\n"
+                f"**{'Completed' if is_completed else 'Cancelled'}:** <t:{int(end_time.timestamp())}:R>\n"
+                f"**Duration:** {int(hours)}h {int(minutes)}m {int(seconds)}s"
+            ),
+            inline=True
+        )
+        
+        # Add reward info (if completed)
+        if is_completed and "rewards" in target_quest:
+            embed.add_field(
+                name="💰 Rewards",
+                value=(
+                    f"**Gold:** 🪙 {target_quest['rewards'].get('gold', 0)}\n"
+                    f"**XP:** ✨ {target_quest['rewards'].get('xp', 0)}"
+                ),
+                inline=True
+            )
+        
+        # Add actions section (paginated if many)
+        actions = target_quest.get("actions", [])
+        if actions:
+            # Format the actions list (limited to first 5 for embed size)
+            action_list = ""
+            for i, action in enumerate(actions[:5]):
+                user_id = action.get("user_id")
+                user = self.bot.get_user(user_id) if user_id else None
+                username = user.display_name if user else action.get("username", "Unknown User")
+                timestamp = datetime.fromisoformat(action.get("timestamp", datetime.now().isoformat()))
+                
+                content = action.get("content", "")
+                if content and len(content) > 50:
+                    content = content[:47] + "..."
+                    
+                action_list += f"**{i+1}.** {username} - <t:{int(timestamp.timestamp())}:R>\n"
+                if content:
+                    action_list += f"└ {content}\n"
+                
+                attachments = action.get("attachments", [])
+                for attachment in attachments:
+                    url = attachment.get("url")
+                    if url:
+                        action_list += f"└ 🖼️ [Attachment]({url})\n"
+            
+            # Add note if there are more actions
+            if len(actions) > 5:
+                action_list += f"*...and {len(actions) - 5} more actions*"
+                
+            embed.add_field(
+                name=f"📝 Actions ({len(actions)})",
+                value=action_list or "No actions recorded.",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="📝 Actions",
+                value="No actions were recorded for this quest.",
+                inline=False
+            )
+        
+        await ctx.send(embed=embed)
+
+    # Add this to the Quests class in cogs/quests/quests.py
+
+    @quests.command(name="ongoing", aliases=["active"])
+    async def ongoing_quests(self, ctx):
+        """Display currently ongoing quests"""
+        ongoing = self.quest_manager.get_ongoing_quests()
+        
+        if not ongoing:
+            return await ctx.send(embed=create_embed(
+                title="📜 Ongoing Quests",
+                description="There are no ongoing quests at the moment.",
+                color=discord.Color.blue()
+            ))
+        
+        # Group quests by difficulty
+        quests_by_difficulty = {
+            "Easy": [],
+            "Normal": [],
+            "Hard": [],
+            "Lunatic": []
+        }
+        
+        for quest in ongoing:
+            quests_by_difficulty[quest["difficulty"]].append(quest)
+        
+        embed = create_embed(
+            title="⚔️ Ongoing Quests",
+            description=f"There are currently {len(ongoing)} active quests:",
+            color=discord.Color.gold()
+        )
+        
+        # Add a field for each difficulty level
+        for difficulty, difficulty_quests in quests_by_difficulty.items():
+            if difficulty_quests:
+                quest_list = ""
+                for quest in difficulty_quests:
+                    # Get leader info
+                    leader_id = quest.get("leader_id")
+                    leader = self.bot.get_user(leader_id) if leader_id else None
+                    leader_name = leader.display_name if leader else "Unknown"
+                    
+                    # Get time info
+                    start_time = datetime.fromisoformat(quest.get("start_time", datetime.now().isoformat()))
+                    end_time = datetime.fromisoformat(quest.get("end_time", datetime.now().isoformat()))
+                    
+                    # Format quest entry
+                    quest_list += (
+                        f"• **{quest['name']}**\n"
+                        f"└ Leader: {leader_name}\n"
+                        f"└ Party: {len(quest.get('participants', []))}\n"
+                        f"└ Ends: <t:{int(end_time.timestamp())}:R>\n"
+                    )
+                
+                embed.add_field(
+                    name=f"{DIFFICULTY_EMOJIS[difficulty]} {difficulty} ({len(difficulty_quests)})",
+                    value=quest_list or "No quests at this difficulty.",
+                    inline=False
+                )
+        
+        embed.set_footer(text="Use '!quests select <quest_name>' to view detailed quest information")
         await ctx.send(embed=embed)
 
 async def setup(bot):

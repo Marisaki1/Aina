@@ -8,8 +8,10 @@ class QuestManager:
         self.base_path = "data/quests"
         self._ensure_dirs()
         
+    # Update the _ensure_dirs method in QuestManager class in quest_manager.py
+
     def _ensure_dirs(self):
-        for path in ["new", "ongoing", "completed"]:
+        for path in ["new", "ongoing", "completed", "failed"]:
             os.makedirs(os.path.join(self.base_path, path), exist_ok=True)
     
     def create_quest(self, quest_data):
@@ -141,3 +143,46 @@ class QuestManager:
         except Exception as e:
             print(f"Error canceling quest: {e}")
             return False
+        
+    # Add these methods to the QuestManager class in cogs/quests/quest_manager.py
+
+    def get_ongoing_quests(self):
+        """Get all ongoing quests"""
+        quests = []
+        try:
+            for file in os.listdir(os.path.join(self.base_path, "ongoing")):
+                if file.endswith(".json"):
+                    with open(os.path.join(self.base_path, "ongoing", file)) as f:
+                        quest = json.load(f)
+                        quests.append(quest)
+            return quests
+        except Exception as e:
+            print(f"Error listing ongoing quests: {e}")
+            return []
+
+    def fail_quest(self, quest_id, cancel_time):
+        """Move a quest from ongoing to failed"""
+        try:
+            src = os.path.join(self.base_path, "ongoing", f"{quest_id}.json")
+            
+            # Create failed directory if it doesn't exist
+            failed_dir = os.path.join(self.base_path, "failed")
+            os.makedirs(failed_dir, exist_ok=True)
+            
+            dest = os.path.join(failed_dir, f"{quest_id}.json")
+            
+            with open(src) as f:
+                quest = json.load(f)
+                quest["cancelled_time"] = cancel_time.isoformat()
+                quest["status"] = "failed"
+                
+            with open(dest, "w") as f:
+                json.dump(quest, f, indent=4)
+                
+            # Only remove the original file after successfully writing the new one
+            os.remove(src)
+            return True
+        except Exception as e:
+            print(f"Error failing quest: {e}")
+            return False
+        
