@@ -14,13 +14,16 @@ class Quests(commands.Cog):
         self.bot = bot
         self.quest_manager = QuestManager()
         self.player_manager = PlayerManager()
+        self.QUEST_CHANNELS_FILE = "data/quests/channels/enabled_channels.json"
         
         # Ensure quest directories exist
         os.makedirs("data/quests/new", exist_ok=True)
         os.makedirs("data/quests/completed", exist_ok=True)
         os.makedirs("data/quests/playerdata", exist_ok=True)
         os.makedirs("data/quests/ongoing", exist_ok=True)
-
+        os.makedirs("data/quests/channels", exist_ok=True)
+        
+        
     @commands.group(name="quests", aliases=["quest", "q"], invoke_without_command=True)
     async def quests(self, ctx):
         """Quest system commands"""
@@ -1107,6 +1110,97 @@ class Quests(commands.Cog):
         
         embed.set_footer(text="Use '!quests select <quest_name>' to view detailed quest information")
         await ctx.send(embed=embed)
+
+    @quests.command(name="enable")
+    @commands.has_permissions(manage_channels=True)
+    async def enable_quests(self, ctx):
+        """Enable random encounters in this channel"""
+        self.set_channel_enabled(ctx.guild.id, ctx.channel.id, True)
+        
+        embed = create_embed(
+            title="✅ Random Encounters Enabled",
+            description=f"Random encounters are now enabled in this channel.",
+            color=discord.Color.green()
+        )
+        
+        # If you want to notify the random encounters cog about this change
+        random_encounters_cog = self.bot.get_cog("RandomEncounters")
+        if random_encounters_cog:
+            random_encounters_cog.refresh_enabled_channels()
+        
+        await ctx.send(embed=embed)
+
+    @quests.command(name="disable")
+    @commands.has_permissions(manage_channels=True)
+    async def disable_quests(self, ctx):
+        """Disable random encounters in this channel"""
+        self.set_channel_enabled(ctx.guild.id, ctx.channel.id, False)
+        
+        embed = create_embed(
+            title="🚫 Random Encounters Disabled",
+            description=f"Random encounters are now disabled in this channel.",
+            color=discord.Color.red()
+        )
+        
+        # If you want to notify the random encounters cog about this change
+        random_encounters_cog = self.bot.get_cog("RandomEncounters")
+        if random_encounters_cog:
+            random_encounters_cog.refresh_enabled_channels()
+        
+        await ctx.send(embed=embed)
+
+    def _load_enabled_channels(self):
+        """Load the list of channels where random encounters are enabled"""
+        try:
+            with open(self.QUEST_CHANNELS_FILE, "r") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            print("Corrupted channels file, resetting...")
+            return {}
+        except FileNotFoundError:
+            print("Creating new channels file...")
+            return {}
+
+    def _save_enabled_channels(self, data):
+        """Save the list of enabled channels"""
+        with open(self.QUEST_CHANNELS_FILE, "w") as f:
+            json.dump(data, f, indent=4)
+
+    def is_channel_enabled(self, guild_id, channel_id):
+        """Check if random encounters are enabled for a specific channel"""
+        guild_id = str(guild_id)
+        channel_id = str(channel_id)
+        
+        enabled_channels = self._load_enabled_channels()
+        
+        # If guild has no configuration, use default (disabled)
+        if guild_id not in enabled_channels:
+            return False
+        
+        # If channel has specific configuration, use it
+        return channel_id in enabled_channels[guild_id]
+
+    def set_channel_enabled(self, guild_id, channel_id, enabled=True):
+        """Enable or disable random encounters for a specific channel"""
+        guild_id = str(guild_id)
+        channel_id = str(channel_id)
+        
+        enabled_channels = self._load_enabled_channels()
+        
+        # Initialize guild entry if it doesn't exist
+        if guild_id not in enabled_channels:
+            enabled_channels[guild_id] = []
+        
+        # Add or remove the channel from the enabled list
+        if enabled and channel_id not in enabled_channels[guild_id]:
+            enabled_channels[guild_id].append(channel_id)
+        elif not enabled and channel_id in enabled_channels[guild_id]:
+            enabled_channels[guild_id].remove(channel_id)
+        
+        # Save the changes
+        self._save_enabled_channels(enabled_channels)
+        
+        return enabled
 
 async def setup(bot):
     await bot.add_cog(Quests(bot))

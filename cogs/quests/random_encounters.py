@@ -238,19 +238,25 @@ class RandomEncounters(commands.Cog):
                 channel = self.bot.get_channel(channel_id)
                 if channel:
                     # Get the message
+                    # try:
+                    #     message = await channel.fetch_message(message_id)
+                        
+                    #     # Update the embed to show it's expired
+                    #     embed = message.embeds[0]
+                    #     embed.title += " (Expired)"
+                    #     embed.color = discord.Color.darker_grey()
+                    #     embed.set_footer(text="This encounter has expired")
+                        
+                    #     await message.edit(embed=embed)
+                    # except discord.NotFound:
+                    #     pass  # Message was deleted
+                # In the expire_encounter method, replace the message edit with:
                     try:
                         message = await channel.fetch_message(message_id)
-                        
-                        # Update the embed to show it's expired
-                        embed = message.embeds[0]
-                        embed.title += " (Expired)"
-                        embed.color = discord.Color.darker_grey()
-                        embed.set_footer(text="This encounter has expired")
-                        
-                        await message.edit(embed=embed)
+                        await message.delete()
                     except discord.NotFound:
-                        pass  # Message was deleted
-                
+                        pass  # Message was already deleted
+
                 # Remove from active encounters
                 del self.active_encounters[channel_id]
             except Exception as e:
@@ -296,10 +302,13 @@ class RandomEncounters(commands.Cog):
             # Determine if success or failure
             is_success = "✅" in outcome
             
+            # Strip the success/failure emoji from the outcome text
+            clean_outcome = outcome.replace("✅ ", "").replace("❌ ", "")
+            
             # Create result embed
             result_embed = create_embed(
                 title=f"{'✅ Success!' if is_success else '❌ Failure!'}",
-                description=outcome,
+                description=clean_outcome,  # Only show the chosen outcome text
                 color=discord.Color.green() if is_success else discord.Color.red()
             )
             
@@ -455,8 +464,12 @@ class RandomEncounters(commands.Cog):
         await ctx.send(embed=embed)
 
 async def setup(bot):
-    # Initialize your LLM manager here or pass it from the bot
-    from .llm_manager import LLMManager  # Import your LLM manager class
-    llm_manager = LLMManager()  # Initialize your LLM manager
+    # Import the updated LLM manager class
+    from .llm_manager import LLMManager
     
-    await bot.add_cog(RandomEncounters(bot, llm_manager))
+    # Initialize LLM manager with proper configuration
+    # Note: This will use the underlying implementation from llm_core.py
+    llm_manager = LLMManager()
+    
+    # Add the cog to the bot
+    await bot.add_cog(RandomEncounters(bot, llm_manager)) # type: ignore
