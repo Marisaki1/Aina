@@ -472,4 +472,4 @@ async def setup(bot):
     llm_manager = LLMManager()
     
     # Add the cog to the bot
-    await bot.add_cog(RandomEncounters(bot, llm_manager)) # type: ignore
+    await bot.add_cog(RandomEncounters(bot, llm_manager)) 
