@@ -4,7 +4,7 @@ from llama_cpp import Llama # type: ignore
 import time
 
 CONVERSATION_HISTORY_FILE = "data/conversations.json"
-DEFAULT_MODEL_PATH = "models/deepseek-coder-1.3b-base.Q8_0.gguf"  # Update this with your actual GGUF filename
+DEFAULT_MODEL_PATH = "models/Beepo-22B-Q4_K_S.gguf"  # Update this with your actual GGUF filename
 HISTORY_LIMIT = 10  # Maximum number of messages to keep in history per user
 
 class LLMManager:
@@ -42,8 +42,8 @@ class LLMManager:
                     model_path=self.model_path,
                     n_ctx=2048,         # Context window size
                     n_batch=512,        # Batch size for prompt processing
-                    n_threads=4,        # CPU threads
-                    n_gpu_layers=0      # Set higher if using GPU
+                    n_threads=6,        # CPU threads
+                    n_gpu_layers=1      # Set higher if using GPU
                 )
                 
                 load_time = time.time() - start_time

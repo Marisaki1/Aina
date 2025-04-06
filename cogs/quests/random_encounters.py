@@ -28,24 +28,30 @@ class RandomEncounters(commands.Cog):
     
     @tasks.loop(minutes=1)  # Check every minute
     async def spawn_random_encounter(self):
-        # Get all text channels in all guilds
+        # Process all guilds and channels concurrently
+        tasks = []
         for guild in self.bot.guilds:
             for channel in guild.text_channels:
-                # Skip if there's already an active encounter in this channel
-                if channel.id in self.active_encounters:
-                    continue
+                tasks.append(self._process_channel_for_encounter(channel))
+        
+        await asyncio.gather(*tasks)
+
+    async def _process_channel_for_encounter(self, channel):
+        """Check and potentially spawn an encounter in a single channel"""
+        # Skip if there's already an active encounter in this channel
+        if channel.id in self.active_encounters:
+            return
+        
+        # Random chance to spawn an encounter (approx every 5-10 minutes)
+        if random.randint(1, 7) == 1:
+            try:
+                # Randomly choose between encounter and event
+                encounter_type = random.choice(["Random Encounter", "Random Event"])
                 
-                # Random chance to spawn an encounter (approx every 5-10 minutes)
-                # This means a 1/7 chance each minute to spawn
-                if random.randint(1, 7) == 1:
-                    try:
-                        # Randomly choose between encounter and event
-                        encounter_type = random.choice(["Random Encounter", "Random Event"])
-                        
-                        # Create and send the encounter
-                        await self.create_encounter(channel, encounter_type)
-                    except Exception as e:
-                        print(f"Error creating encounter in {channel.name}: {e}")
+                # Create and send the encounter
+                await self.create_encounter(channel, encounter_type)
+            except Exception as e:
+                print(f"Error creating encounter in {channel.name}: {e}")
     
     async def create_encounter(self, channel, encounter_type):
         """Create and send a random encounter or event to the channel"""
@@ -212,6 +218,12 @@ class RandomEncounters(commands.Cog):
         
         return scenario, choices, outcomes
     
+    def refresh_enabled_channels(self):
+        """Refresh the list of enabled channels from storage"""
+        # This method can be empty if you don't need to do anything special
+        # The channel checks will happen when encounters are spawned
+        pass
+
     async def get_active_users(self, channel):
         """Get a list of active user IDs in the channel within the last 10 minutes"""
         active_users = []
@@ -340,9 +352,18 @@ class RandomEncounters(commands.Cog):
             original_embed.title += " (Resolved)"
             original_embed.set_footer(text=f"Resolved by {user.display_name}")
             await reaction.message.edit(embed=original_embed)
+
+            try:
+                await reaction.message.delete()
+            except discord.NotFound:
+                pass  # Message was already deleted
+            except Exception as e:
+                print(f"Error deleting encounter message: {e}")
+            # ======================================
             
             # Remove from active encounters
-            del self.active_encounters[channel_id]
+            if channel_id in self.active_encounters:
+                del self.active_encounters[channel_id]
         
     @commands.group(name="location", invoke_without_command=True)
     async def location(self, ctx):

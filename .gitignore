@@ -26,3 +26,7 @@ ENV/
 
 # Data files
 #data/
+
+
+# models files
+models/
