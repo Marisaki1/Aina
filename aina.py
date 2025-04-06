@@ -35,7 +35,7 @@ async def load_cogs():
         # Load the new random encounters cog
         await bot.load_extension("cogs.quests.random_encounters")        
         # Load conversation cog
-        #await bot.load_extension("cogs.conversation.conversation")
+        await bot.load_extension("cogs.conversation.conversation")
         
         # Load events cog
         await bot.load_extension("cogs.events")

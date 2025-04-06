@@ -1,10 +1,10 @@
 import os
 import json
-from llama_cpp import Llama # type: ignore
+from llama_cpp import Llama 
 import time
 
 CONVERSATION_HISTORY_FILE = "data/conversations.json"
-DEFAULT_MODEL_PATH = "models/Beepo-22B-Q4_K_S.gguf"  # Update this with your actual GGUF filename
+DEFAULT_MODEL_PATH = "models/airoboros-mistral2.2-7b.Q4_K_S.gguf"  # Update this with your actual GGUF filename
 HISTORY_LIMIT = 10  # Maximum number of messages to keep in history per user
 
 class LLMManager:
@@ -23,33 +23,47 @@ class LLMManager:
         
         # Verify model exists
         if not os.path.exists(self.model_path):
-            print(f"⚠️ Warning: Model file not found at {self.model_path}")
+            print(f"❌ ERROR: Model file not found at {self.model_path}")
             print("Please ensure your GGUF model is in the models directory")
         else:
             print(f"✅ Model file found: {self.model_path}")
+            # Load model immediately to verify it works
+            try:
+                self.initialize_model()
+            except Exception as e:
+                print(f"❌ ERROR initializing model: {str(e)}")
+    
+    def initialize_model(self):
+        """Initialize the model with proper error handling"""
+        try:
+            print(f"🔄 Loading LLM model from {self.model_path}...")
+            start_time = time.time()
+            
+            # Initialize the model with settings optimized for RTX 4070 Super
+            self._model = Llama(
+                model_path=self.model_path,
+                n_ctx=4024,         # Context window size
+                n_batch=512,        # Batch size for prompt processing
+                n_threads=4,        # CPU threads - matches your 6 cores
+                n_gpu_layers=15     # Higher value for RTX 4070 Super
+            )
+            
+            load_time = time.time() - start_time
+            print(f"✅ Model loaded in {load_time:.2f} seconds")
+            return True
+        except Exception as e:
+            print(f"❌ Error loading model: {e}")
+            self._model = None
+            raise e
     
     @property
     def model(self):
         """Lazy-load the model only when needed"""
         if self._model is None:
             try:
-                print(f"🔄 Loading LLM model from {self.model_path}...")
-                start_time = time.time()
-                
-                # Initialize the model with reasonable defaults
-                # Adjust these parameters based on your model and hardware
-                self._model = Llama(
-                    model_path=self.model_path,
-                    n_ctx=2048,         # Context window size
-                    n_batch=512,        # Batch size for prompt processing
-                    n_threads=6,        # CPU threads
-                    n_gpu_layers=1      # Set higher if using GPU
-                )
-                
-                load_time = time.time() - start_time
-                print(f"✅ Model loaded in {load_time:.2f} seconds")
+                self.initialize_model()
             except Exception as e:
-                print(f"❌ Error loading model: {e}")
+                print(f"❌ Error in model getter: {e}")
                 return None
                 
         return self._model
@@ -57,7 +71,7 @@ class LLMManager:
     def get_response(self, user_id, prompt, system_prompt="You are Aina, a helpful AI assistant."):
         """Generate a response to the user's prompt"""
         if not self.model:
-            return "I'm sorry, I'm having trouble thinking right now. Please try again later."
+            return "I'm sorry, I'm having trouble thinking right now. The LLM model could not be loaded. Please check the logs and try again later."
         
         # Get conversation history
         history = self.get_conversation_history(user_id)
@@ -93,8 +107,9 @@ class LLMManager:
             
             return generated_text
         except Exception as e:
-            print(f"❌ Error generating response: {e}")
-            return "I'm sorry, I encountered an error while processing your request."
+            error_msg = f"❌ Error generating response: {e}"
+            print(error_msg)
+            return f"I'm sorry, I encountered an error while processing your request: {str(e)}"
     
     def get_conversation_history(self, user_id):
         """Get conversation history for a specific user"""

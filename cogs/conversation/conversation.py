@@ -4,6 +4,7 @@ import asyncio
 import os
 from .llm_core import LLMManager
 import time
+import functools
 
 class Conversation(commands.Cog):
     def __init__(self, bot):
@@ -23,8 +24,11 @@ class Conversation(commands.Cog):
     async def initialize_llm(self):
         """Initialize the LLM manager in the background"""
         await self.bot.wait_until_ready()
-        self.llm_manager = LLMManager()
-        print("✅ LLM Manager initialized")
+        try:
+            self.llm_manager = LLMManager()
+            print("✅ LLM Manager initialized")
+        except Exception as e:
+            print(f"❌ Failed to initialize LLM Manager: {e}")
     
     def get_conversation_status(self, user_id):
         """Check if a conversation is active for a user"""
@@ -58,11 +62,16 @@ class Conversation(commands.Cog):
         
         # Process in a separate thread to avoid blocking
         try:
-            # Get response from LLM (run in a thread pool)
-            response = await asyncio.to_thread(
-                self.llm_manager.get_response,
-                ctx.author.id,
-                message
+            # Create a partial function to call in the executor
+            # This is the correct way to use to_thread with functions that take arguments
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,  # Use default executor
+                functools.partial(
+                    self.llm_manager.get_response,
+                    ctx.author.id,
+                    message
+                )
             )
             
             # Create response embed
@@ -103,6 +112,19 @@ class Conversation(commands.Cog):
             await ctx.send(embed=embed)
         else:
             await ctx.send("You don't have an active conversation with me.")
+            
+    @commands.command()
+    async def debug_llm(self, ctx):
+        """Debug command to check LLM status"""
+        if self.llm_manager is None:
+            await ctx.send("⚠️ LLM Manager not initialized yet")
+            return
+            
+        if self.llm_manager.model is None:
+            await ctx.send("❌ LLM Model failed to load")
+            return
+            
+        await ctx.send("✅ LLM system is operational")
     
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -113,15 +135,16 @@ class Conversation(commands.Cog):
             
         # Handle DMs as continuation of conversations
         if isinstance(message.channel, discord.DMChannel):
-            ctx = await self.bot.get_context(message)
-            
-            # If the message is a command, let the command system handle it
-            if ctx.valid:
-                return
-                
-            # Otherwise treat it as a chat continuation if there's an active conversation
+            # If there's an active conversation, process the message as chat
             if self.get_conversation_status(message.author.id):
-                # Create a context object for the chat command
+                # Create a mock context object for the chat command
+                ctx = await self.bot.get_context(message)
+                
+                # Skip if it's a command
+                if ctx.valid:
+                    return
+                    
+                # Process as chat message
                 await self.chat(ctx, message=message.content)
 
 async def setup(bot):
