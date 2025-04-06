@@ -37,11 +37,17 @@ class Help(commands.Cog):
             quest_commands = (
                 "`!quests create` - Create new quest\n"
                 "`!quests list` - List available quests\n"
-                "`!quests start` - Start a quest with party\n"
-                "`!quests action` - Log quest progress\n"
+                "`!quests select <quest_name>` - View quest details\n"
+                "`!quests start <quest_name> [p: @user1, @user2...]` - Start a quest with party\n"
+                "`!quests action <message/attachment>` - Log quest progress\n"
                 "`!quests complete` - Finish active quest\n"
+                "`!quests cancel` - Cancel active quest\n"
                 "`!quests inventory` - View your items\n"
-                "`!quests profile` - Player statistics"
+                "`!quests profile` - Player statistics\n"
+                "`!quests records` - View quest history\n"
+                "`!quests ongoing` - Show active quests\n"
+                "`!quests enable` - Enable random encounters (Admin)\n"
+                "`!quests disable` - Disable random encounters (Admin)"
             )
             embed.add_field(name="⚔️ Quest System Commands", value=quest_commands, inline=False)
             
@@ -171,6 +177,105 @@ class Help(commands.Cog):
             await ctx.send(embed=embed)
 
         # Add similar blocks for other commands...
+        # Add quests subcommand help sections below
+        elif command.lower() == "quests select":
+            embed = discord.Embed(
+                title="!quests select Command Help",
+                description="View detailed information about a specific quest",
+                color=discord.Color.green()
+            )
+            usage = (
+                "**Format:** `!quests select <quest_name>`\n\n"
+                "**Parameters:**\n"
+                "- `quest_name` - Name of the quest from `!quests list`\n\n"
+                "**Example:** `!quests select Dragon Slayer`"
+            )
+            embed.add_field(name="Usage", value=usage, inline=False)
+            await ctx.send(embed=embed)
+
+        elif command.lower() == "quests cancel":
+            embed = discord.Embed(
+                title="!quests cancel Command Help",
+                description="Cancel your active quest",
+                color=discord.Color.red()
+            )
+            usage = (
+                "**Format:** `!quests cancel`\n\n"
+                "**Notes:**\n"
+                "- Only quest leader or admins can cancel\n"
+                "- Cancelled quests appear in history\n\n"
+                "**Example:** `!quests cancel`"
+            )
+            embed.add_field(name="Usage", value=usage, inline=False)
+            await ctx.send(embed=embed)
+
+        elif command.lower() == "quests records":
+            embed = discord.Embed(
+                title="!quests records Command Help",
+                description="View your quest history with filters",
+                color=discord.Color.blue()
+            )
+            usage = (
+                "**Format:** `!quests records [filter]`\n\n"
+                "**Filters:**\n"
+                "- `completed` - Show completed quests\n"
+                "- `failed` - Show failed/cancelled quests\n"
+                "- `select <name>` - View specific quest details\n\n"
+                "**Examples:**\n"
+                "`!quests records failed`\n"
+                "`!quests records select Ancient Ruins`"
+            )
+            embed.add_field(name="Usage", value=usage, inline=False)
+            await ctx.send(embed=embed)
+
+        elif command.lower() == "quests ongoing":
+            embed = discord.Embed(
+                title="!quests ongoing Command Help",
+                description="List all active quests in progress",
+                color=discord.Color.gold()
+            )
+            usage = (
+                "**Format:** `!quests ongoing`\n\n"
+                "Shows:\n"
+                "- Quest names\n"
+                "- Leaders\n"
+                "- Remaining time\n\n"
+                "**Example:** `!quests ongoing`"
+            )
+            embed.add_field(name="Usage", value=usage, inline=False)
+            await ctx.send(embed=embed)
+
+        elif command.lower() == "quests disable":  # MOVE THIS BLOCK ABOVE "quests enable"
+            embed = discord.Embed(
+                title="!quests disable Command Help",
+                description="Disable random encounters (Admin only)",
+                color=discord.Color.red()
+            )
+            usage = (
+                "**Format:** `!quests disable`\n\n"
+                "**Requirements:**\n"
+                "- Manage Channels permission\n"
+                "- Must be used in target channel\n\n"
+                "**Example:** `!quests disable`"
+            )
+            embed.add_field(name="Usage", value=usage, inline=False)
+            await ctx.send(embed=embed)
+
+        elif command.lower() == "quests enable":
+            embed = discord.Embed(
+                title="!quests enable Command Help",
+                description="Enable random encounters (Admin only)",
+                color=discord.Color.green()
+            )
+            usage = (
+                "**Format:** `!quests enable`\n\n"
+                "**Requirements:**\n"
+                "- Manage Channels permission\n"
+                "- Must be used in target channel\n\n"
+                "**Example:** `!quests enable`"
+            )
+            embed.add_field(name="Usage", value=usage, inline=False)
+            await ctx.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(Help(bot))
