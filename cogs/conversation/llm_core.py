@@ -42,8 +42,8 @@ class LLMManager:
             # Initialize the model with settings optimized for RTX 4070 Super
             self._model = Llama(
                 model_path=self.model_path,
-                n_ctx=4024,         # Context window size
-                n_batch=512,        # Batch size for prompt processing
+                n_ctx=4096,         # Context window size
+                n_batch=256,        # Batch size for prompt processing
                 n_threads=4,        # CPU threads - matches your 6 cores
                 n_gpu_layers=15     # Higher value for RTX 4070 Super
             )
