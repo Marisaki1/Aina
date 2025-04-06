@@ -138,8 +138,6 @@ class RandomEncounters(commands.Cog):
             "expires": datetime.now() + timedelta(minutes=1)
         }
 
-        scenario, choices, outcomes = self.parse_encounter_content(encounter_content)
-
         # Save encounter data for reuse
         self.save_encounter_data(  
             target_user_id,
@@ -282,8 +280,6 @@ class RandomEncounters(commands.Cog):
         # The channel checks will happen when encounters are spawned
         pass
 
-
-
     def save_encounter_data(self, target_user_id, location, encounter_type, scenario, choices, outcomes):
         """Save encounter data to JSON file for reuse"""
         encounter_file = "data/quests/encounters.json"
@@ -419,20 +415,7 @@ class RandomEncounters(commands.Cog):
                 # Get the channel
                 channel = self.bot.get_channel(channel_id)
                 if channel:
-                    # Get the message
-                    # try:
-                    #     message = await channel.fetch_message(message_id)
-                        
-                    #     # Update the embed to show it's expired
-                    #     embed = message.embeds[0]
-                    #     embed.title += " (Expired)"
-                    #     embed.color = discord.Color.darker_grey()
-                    #     embed.set_footer(text="This encounter has expired")
-                        
-                    #     await message.edit(embed=embed)
-                    # except discord.NotFound:
-                    #     pass  # Message was deleted
-                # In the expire_encounter method, replace the message edit with:
+                    # Get and delete the message
                     try:
                         message = await channel.fetch_message(message_id)
                         await message.delete()
@@ -504,15 +487,7 @@ class RandomEncounters(commands.Cog):
                 color=discord.Color.green() if is_success else discord.Color.red()
             )
             
-            # Send result message
-            result_message = await reaction.message.channel.send(embed=result_embed)
-
-            # Schedule result message deletion after 1 minute
-            self.bot.loop.create_task(self.delete_after_delay(result_message, 60))
-
-            # Your existing code for updating original message...
-
-            # If success, award XP and gold
+            # If success, add rewards to embed and player
             if is_success:
                 # Generate random rewards
                 xp = random.randint(100, 300)
@@ -525,29 +500,29 @@ class RandomEncounters(commands.Cog):
                     player_data["gold"] = player_data.get("gold", 0) + gold
                     self.player_manager.save_player_data(user.id, player_data)
                 
-                    # Add rewards info to embed
-                    result_embed.add_field(
-                        name="💰 Rewards",
-                        value=f"**+{xp} XP**\n**+{gold} Gold**",
-                        inline=False
-                    )
+                # Add rewards info to embed
+                result_embed.add_field(
+                    name="💰 Rewards",
+                    value=f"**+{xp} XP**\n**+{gold} Gold**",
+                    inline=False
+                )
             
-            # Send result message
-            await reaction.message.channel.send(embed=result_embed)
+            # Add Quest System version to footer
+            result_embed.set_footer(text="Quest System v1.0")
             
-            # Update original message
-            original_embed = reaction.message.embeds[0]
-            original_embed.title += " (Resolved)"
-            original_embed.set_footer(text=f"Resolved by {user.display_name}")
-            await reaction.message.edit(embed=original_embed)
-
+            # Send result message (only once)
+            result_message = await reaction.message.channel.send(embed=result_embed)
+            
+            # Schedule result message deletion after 1 minute
+            self.bot.loop.create_task(self.delete_after_delay(result_message, 60))
+            
+            # Delete the original encounter message immediately
             try:
                 await reaction.message.delete()
             except discord.NotFound:
                 pass  # Message was already deleted
             except Exception as e:
                 print(f"Error deleting encounter message: {e}")
-            # ======================================
             
             # Remove from active encounters
             if channel_id in self.active_encounters:
@@ -681,4 +656,4 @@ async def setup(bot):
     llm_manager = LLMManager()
     
     # Add the cog to the bot
-    await bot.add_cog(RandomEncounters(bot, llm_manager)) 
+    await bot.add_cog(RandomEncounters(bot, llm_manager))
