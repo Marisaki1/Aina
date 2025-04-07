@@ -4,7 +4,7 @@ from llama_cpp import Llama
 import time
 
 CONVERSATION_HISTORY_FILE = "data/conversations.json"
-DEFAULT_MODEL_PATH = "models/airoboros-mistral2.2-7b.Q4_K_S.gguf"  # Update this with your actual GGUF filename
+DEFAULT_MODEL_PATH = "models/j.gguf"  # Update this with your actual GGUF filename
 HISTORY_LIMIT = 10  # Maximum number of messages to keep in history per user
 
 class LLMManager:
@@ -43,7 +43,7 @@ class LLMManager:
             self._model = Llama(
                 model_path=self.model_path,
                 n_ctx=10000,         # Context window size
-                n_batch=512,        # Batch size for prompt processing
+                n_batch=256,        # Batch size for prompt processing
                 n_threads=4,        # CPU threads - matches your 6 cores
                 n_gpu_layers=15     # Higher value for RTX 4070 Super
             )

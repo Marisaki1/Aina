@@ -8,6 +8,7 @@ import os
 from datetime import datetime, timedelta
 from .utils import create_embed
 from .player_manager import PlayerManager
+from .scenario_maker import ScenarioMaker
 
 class RandomEncounters(commands.Cog):
     def __init__(self, bot, llm_manager):
@@ -16,6 +17,7 @@ class RandomEncounters(commands.Cog):
         self.player_manager = PlayerManager()
         self.active_encounters = {}  # Track active encounters by channel
         self.encounter_messages = {}  # Track encounter messages
+        self.scenario_maker = ScenarioMaker()  # New scenario maker instance
         
         # Ensure player location data directory exists
         os.makedirs("data/quests/playerdata", exist_ok=True)
@@ -27,7 +29,7 @@ class RandomEncounters(commands.Cog):
         # Stop the task when the cog is unloaded
         self.spawn_random_encounter.cancel()
     
-    @tasks.loop(minutes=1)  # Check every minute
+    @tasks.loop(seconds=2)  # Check every minute
     async def spawn_random_encounter(self):
         # Process all guilds and channels concurrently
         tasks = []
@@ -77,35 +79,15 @@ class RandomEncounters(commands.Cog):
             player_data["location"] = "Town of Rivermeet"
             self.player_manager.save_player_data(target_user_id, player_data)
         
-        # Generate encounter content using LLM
-        prompt = f"""
-        You are a Dungeon Master guiding a player through a Dungeons & Dragons 5e adventure.
-        The player is currently in a **{location}**.
-        Your job is to:
-        - Present a short, immersive scenario appropriate to the current location.
-        - Offer 3 distinct choices the player might make.
-        - Only one choice should lead to a successful outcome.
-        - Describe the outcome of **each** choice with flavor and D&D-style detail.
-        Use the following format:
-        Scenario:
-        [Write a short, engaging scenario that fits the setting.]
-        Choices:
-        1. [Option 1]
-        2. [Option 2]
-        3. [Option 3]
-        Outcomes:
-        1. ❌ [Failure outcome and consequences]
-        2. ✅ [Success outcome and why it worked]
-        3. ❌ [Failure outcome and why it didn't work]
-        If it's a {encounter_type} then the scenario should be a {"battle" if encounter_type == "Random Encounter" else "normal"} scenario.
-        If it's a success then reward the player 100-300 XP and 10-50 Gold.
-        """
+        # Generate a scenario using the ScenarioMaker
+        scenario_data = self.scenario_maker.generate_scenario(location)
+        prompt = scenario_data["prompt"]
         
-        # Call your LLM manager to generate the encounter
-        encounter_content = await self.generate_encounter(prompt)
+        # Generate encounter content using LLM
+        encounter_content = await self.generate_encounter(prompt, scenario_data, encounter_type)
         
         # Parse the generated content
-        scenario, choices, outcomes = self.parse_encounter_content(encounter_content)
+        scenario, choices, outcomes = self.parse_encounter_content(encounter_content, scenario_data)
         
         # Create embed
         embed = create_embed(
@@ -151,84 +133,75 @@ class RandomEncounters(commands.Cog):
         # Schedule removal after 1 minute
         self.bot.loop.create_task(self.expire_encounter(channel.id, encounter_message.id))
     
-    async def generate_encounter(self, prompt):
-        """Generate encounter content using LLM manager with improved fallback mechanism"""
+    async def generate_encounter(self, prompt, scenario_data, encounter_type):
+        """Generate encounter content using LLM manager with ScenarioMaker data as fallback"""
         try:
+            # Customize prompt based on encounter type
+            full_prompt = f"""
+            You are a Dungeon Master guiding a player through a Dungeons & Dragons 5e adventure.
+            The player is in the middle of an encounter. {prompt}
+            
+            If it's a {encounter_type} then the scenario should be a {"battle" if encounter_type == "Random Encounter" else "normal"} scenario.
+            
+            Use the following format:
+            Scenario:
+            [Write a short, engaging scenario that fits the setting and involves the NPCs and problem mentioned. Be descriptive and set the scene.]
+            
+            Choices:
+            1. [Option 1 using the first skill]
+            2. [Option 2 using the second skill]
+            3. [Option 3 using the third skill]
+            
+            Outcomes:
+            [For each choice, provide a detailed outcome. Make sure to mark only one outcome as successful with a ✅ and the others as failures with a ❌.]
+            
+            If it's a success then reward the player 100-300 XP and 10-50 Gold.
+            """
+            
             # Try to use the LLM
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
                 None, 
                 lambda: self.llm_manager.get_response(
                     "encounters", 
-                    prompt
+                    full_prompt
                 )
             )
             return response
         except Exception as e:
             print(f"Error generating encounter with LLM: {e}")
             
-            # Extract location from prompt
-            location_match = re.search(r"\*\*([^*]+)\*\*", prompt)
-            location = location_match.group(1) if location_match else "Town of Rivermeet"
-            
-            # Extract encounter type
-            encounter_type_match = re.search(r"If it's a ([^t]+) then", prompt)
-            encounter_type = encounter_type_match.group(1).strip() if encounter_type_match else "Random Encounter"
-            
-            # Try to get multiple saved encounters and select a truly random one
-            saved_encounters = self.get_all_saved_encounters(location, encounter_type)
-            
-            if saved_encounters and len(saved_encounters) > 0:
-                print(f"Using saved encounter for {location} ({encounter_type}) - {len(saved_encounters)} available")
-                
-                # Select a random encounter from ALL matching encounters
-                chosen = random.choice(saved_encounters)
-                
-                # Get the outcomes
-                outcomes = chosen.get('outcomes', [])
-                
-                # Make sure we have 3 outcomes
-                while len(outcomes) < 3:
-                    outcomes.append(f"{len(outcomes)+1}. Outcome not provided")
-                
-                # Randomly reassign which outcome is successful
-                if random.random() < 0.7:  # 70% chance to randomize success
-                    # Remove existing success/failure markers
-                    cleaned_outcomes = []
-                    for outcome in outcomes:
-                        cleaned = outcome.replace("✅ ", "").replace("❌ ", "")
-                        cleaned_outcomes.append(cleaned)
-                    
-                    # Randomly select new success outcome
-                    success_idx = random.randint(0, 2)
-                    
-                    # Add markers back
-                    for i in range(3):
-                        if i == success_idx:
-                            outcomes[i] = f"{i+1}. ✅ {cleaned_outcomes[i][3:]}"
-                        else:
-                            outcomes[i] = f"{i+1}. ❌ {cleaned_outcomes[i][3:]}"
-                
-                # Build the response text
-                constructed_response = f"""
-                Scenario:
-                {chosen['scenario']}
-                
-                Choices:
-                {chosen['choices']}
-                
-                Outcomes:
-                {outcomes[0]}
-                {outcomes[1]}
-                {outcomes[2]}
-                """
-                return constructed_response
-            
-            # Default fallback if no saved encounter found
-            return self.generate_default_encounter()
+            # Use data from ScenarioMaker as fallback
+            return self.create_encounter_from_scenario_data(scenario_data, encounter_type)
     
-    def parse_encounter_content(self, content):
-        """Parse the generated content into scenario, choices, and outcomes with randomized success"""
+    def create_encounter_from_scenario_data(self, scenario_data, encounter_type):
+        """Create a structured encounter from scenario data"""
+        # Extract relevant data
+        npcs = " and ".join(scenario_data["npcs"])
+        location = scenario_data["location"]
+        problem = scenario_data["problem"]
+        
+        # Create basic scenario text
+        scenario_text = f"""
+        Scenario:
+        You encounter {npcs} at {location}. {problem}.
+        
+        Choices:
+        {scenario_data["choices"][0]}
+        {scenario_data["choices"][1]}
+        {scenario_data["choices"][2]}
+        
+        Outcomes:
+        {scenario_data["outcomes"][0]}
+        {scenario_data["outcomes"][1]}
+        {scenario_data["outcomes"][2]}
+        """
+        
+        return scenario_text
+    
+    def parse_encounter_content(self, content, scenario_data=None):
+        """Parse the generated content into scenario, choices, and outcomes"""
+        # First try to parse the generated content
         sections = content.split("Scenario:", 1)
         if len(sections) > 1:
             content = sections[1]
@@ -236,25 +209,30 @@ class RandomEncounters(commands.Cog):
         # Split the content by headers
         parts = content.split("Choices:", 1)
         if len(parts) < 2:
-            # Fallback if format is wrong
-            scenario = "You encounter something unusual..."
-            choices = "1. Option A\n2. Option B\n3. Option C"
-            # Randomize which option is successful
-            success_index = random.randint(0, 2)
-            outcomes = ["Failure", "Failure", "Failure"]
-            outcomes[success_index] = "Success"
-            return scenario, choices, outcomes
+            # Fallback to scenario data
+            if scenario_data:
+                scenario = f"You encounter {' and '.join(scenario_data['npcs'])} at {scenario_data['location']}. {scenario_data['problem']}."
+                choices = "\n".join(scenario_data["choices"])
+                outcomes = scenario_data["outcomes"]
+                return scenario, choices, outcomes
+            else:
+                # Ultimate fallback
+                scenario = "You encounter something unusual..."
+                choices = "1. Option A\n2. Option B\n3. Option C"
+                outcomes = ["1. ❌ Failure", "2. ✅ Success", "3. ❌ Failure"]
+                return scenario, choices, outcomes
         
         scenario = parts[0].strip()
         remaining = parts[1]
         
         parts = remaining.split("Outcomes:", 1)
         if len(parts) < 2:
-            choices = parts[0].strip()
-            # Randomize which option is successful when no outcomes provided
-            success_index = random.randint(0, 2)
-            outcomes = ["Failure", "Failure", "Failure"]
-            outcomes[success_index] = "Success"
+            if scenario_data:
+                choices = parts[0].strip()
+                outcomes = scenario_data["outcomes"]
+            else:
+                choices = parts[0].strip()
+                outcomes = ["1. ❌ Failure", "2. ✅ Success", "3. ❌ Failure"]
         else:
             choices = parts[0].strip()
             outcomes_text = parts[1].strip()
@@ -264,118 +242,47 @@ class RandomEncounters(commands.Cog):
             outcome_lines = outcomes_text.split("\n")
             
             # Process each line to extract individual outcomes
-            has_success_marker = False
             for line in outcome_lines:
                 line = line.strip()
                 if not line:
                     continue
                     
-                # Check if this is a numbered outcome
-                if line.startswith("1. ") or line.startswith("2. ") or line.startswith("3. "):
-                    # Extract the number
-                    outcome_num = int(line[0])
-                    
-                    # Ensure we have space for this outcome
-                    while len(outcomes) < outcome_num:
-                        outcomes.append("")
-                    
-                    # Store the outcome (index is number-1)
-                    outcomes[outcome_num-1] = line
-                    
-                    # Check if this line contains success marker
-                    if "✅" in line:
-                        has_success_marker = True
-        
+                # Check if this is a numbered outcome (1., 2., or 3.)
+                if re.match(r"^\d+\.\s", line):
+                    outcomes.append(line)
+            
             # Make sure we have exactly 3 outcomes
             while len(outcomes) < 3:
-                outcomes.append(f"{len(outcomes)+1}. Outcome not provided")
+                # If we have scenario data, use that to fill in missing outcomes
+                if scenario_data and len(scenario_data["outcomes"]) > len(outcomes):
+                    idx = len(outcomes)
+                    outcomes.append(scenario_data["outcomes"][idx])
+                else:
+                    outcomes.append(f"{len(outcomes)+1}. Outcome not provided")
             
-            # If no success marker was found, randomly assign a success outcome
-            if not has_success_marker:
-                success_index = random.randint(0, 2)
-                # Add success marker to a random outcome
-                outcomes[success_index] = outcomes[success_index].replace(f"{success_index+1}. ", f"{success_index+1}. ✅ ")
-                # Add failure markers to other outcomes
-                for i in range(3):
-                    if i != success_index:
-                        if not "❌" in outcomes[i]:
-                            outcomes[i] = outcomes[i].replace(f"{i+1}. ", f"{i+1}. ❌ ")
+            # Ensure we have success and failure markers
+            has_success = any("✅" in outcome for outcome in outcomes)
+            if not has_success:
+                # If no success marker found, use scenario data if available
+                if scenario_data and "success_index" in scenario_data:
+                    success_idx = scenario_data["success_index"]
+                else:
+                    # Otherwise randomly select a success
+                    success_idx = random.randint(0, 2)
+                
+                # Add markers to outcomes
+                for i in range(len(outcomes)):
+                    # Remove any existing markers
+                    clean_outcome = re.sub(r"[❌✅]\s*", "", outcomes[i])
+                    
+                    # Add the appropriate marker
+                    if i == success_idx:
+                        outcomes[i] = re.sub(r"^\d+\.\s*", f"{i+1}. ✅ ", clean_outcome)
+                    else:
+                        outcomes[i] = re.sub(r"^\d+\.\s*", f"{i+1}. ❌ ", clean_outcome)
         
         return scenario, choices, outcomes
-            
-    def generate_default_encounter(self):
-        """Generate a default encounter with random success/failure assignments"""
-        # List of default scenarios
-        scenarios = [
-            "You encounter a mysterious fog in the path ahead. It seems to shimmer with an otherworldly glow.",
-            "A wounded traveler sits by the roadside, clutching a strange amulet.",
-            "You notice a hidden trail diverging from the main path, marked with unusual symbols.",
-            "A merchant's cart is stuck in a muddy patch, the owner looking distressed.",
-            "A small chest lies partially buried under some leaves, its lock gleaming in the light."
-        ]
-        
-        # List of default choices
-        choice_sets = [
-            "1. Walk straight through it\n2. Throw a stone to test it\n3. Try to go around it",
-            "1. Offer immediate help\n2. Ask about the amulet first\n3. Keep your distance and observe",
-            "1. Follow the hidden trail\n2. Examine the symbols closely\n3. Continue on your original path",
-            "1. Help push the cart free\n2. Offer advice on how to free it\n3. Offer to buy their wares at a discount",
-            "1. Open it immediately\n2. Inspect it carefully first\n3. Leave it alone"
-        ]
-        
-        # Randomly select scenario and choices
-        scenario_idx = random.randint(0, len(scenarios) - 1)
-        scenario = scenarios[scenario_idx]
-        choices = choice_sets[scenario_idx]
-        
-        # Randomly determine which choice leads to success
-        success_idx = random.randint(0, 2)
-        
-        # Create outcomes based on success index
-        outcomes = []
-        for i in range(3):
-            if i == success_idx:
-                outcomes.append(f"{i+1}. ✅ Your choice was wise! You find 25 gold coins and gain 150 XP.")
-            else:
-                outcomes.append(f"{i+1}. ❌ Your choice leads to a minor setback. You lose 2 health points.")
-        
-        # Build the response text
-        return f"""
-        Scenario:
-        {scenario}
-        
-        Choices:
-        {choices}
-        
-        Outcomes:
-        {outcomes[0]}
-        {outcomes[1]}
-        {outcomes[2]}
-        """
-
-    def get_all_saved_encounters(self, location, encounter_type):
-        """Get all previously saved encounters for the given location and type"""
-        encounter_file = "data/quests/encounters.json"
-        
-        try:
-            with open(encounter_file, "r") as f:
-                encounters = json.load(f)
-            
-            # Filter by location and type
-            matching = [e for e in encounters if e["location"] == location and e["encounter_type"] == encounter_type]
-            return matching
-                
-        except (json.JSONDecodeError, FileNotFoundError) as e:
-            print(f"Error loading saved encounters: {e}")
-        
-        return []
     
-    def refresh_enabled_channels(self):
-        """Refresh the list of enabled channels from storage"""
-        # This method can be empty if you don't need to do anything special
-        # The channel checks will happen when encounters are spawned
-        pass
-
     def save_encounter_data(self, target_user_id, location, encounter_type, scenario, choices, outcomes):
         """Save encounter data to JSON file for reuse"""
         encounter_file = "data/quests/encounters.json"
@@ -435,57 +342,6 @@ class RandomEncounters(commands.Cog):
         
         print(f"Saved encounter data for {location} ({encounter_type})")
 
-    def get_saved_encounter(self, location, encounter_type):
-        """Get a previously saved encounter for the given location and type"""
-        encounter_file = "data/quests/encounters.json"
-        
-        try:
-            with open(encounter_file, "r") as f:
-                encounters = json.load(f)
-            
-            # Filter by location and type
-            matching = [e for e in encounters if e["location"] == location and e["encounter_type"] == encounter_type]
-            
-            if matching:
-                # Return a random matching encounter
-                chosen = random.choice(matching)
-                
-                # Check outcome formats
-                outcomes = chosen["outcomes"]
-                # If first outcome contains all three outcomes in one string
-                if len(outcomes) == 3 and outcomes[1] == "Outcome not provided" and outcomes[2] == "Outcome not provided":
-                    # Try to parse the first outcome into three separate outcomes
-                    combined = outcomes[0]
-                    parsed_outcomes = []
-                    
-                    # Look for outcome indicators (1., 2., 3.)
-                    for i in range(1, 4):
-                        start_marker = f"{i}. "
-                        next_marker = f"{i+1}. " if i < 3 else None
-                        
-                        start_pos = combined.find(start_marker)
-                        end_pos = combined.find(next_marker) if next_marker else None
-                        
-                        if start_pos >= 0:
-                            if end_pos and end_pos > start_pos:
-                                parsed_outcome = combined[start_pos:end_pos].strip()
-                            else:
-                                parsed_outcome = combined[start_pos:].strip()
-                            
-                            parsed_outcomes.append(parsed_outcome)
-                        else:
-                            parsed_outcomes.append(f"{i}. Outcome not provided")
-                    
-                    # Update outcomes if we successfully parsed them
-                    if len(parsed_outcomes) == 3:
-                        chosen["outcomes"] = parsed_outcomes
-                
-                return chosen
-        except (json.JSONDecodeError, FileNotFoundError) as e:
-            print(f"Error loading saved encounters: {e}")
-        
-        return None
-
     async def get_active_users(self, channel):
         """Get a list of active user IDs in the channel within the last 10 minutes"""
         active_users = []
@@ -532,7 +388,6 @@ class RandomEncounters(commands.Cog):
             pass  # Message was already deleted
         except Exception as e:
             print(f"Error deleting result message: {e}")
-
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
@@ -755,7 +610,6 @@ async def setup(bot):
     from .llm_manager import LLMManager
     
     # Initialize LLM manager with proper configuration
-    # Note: This will use the underlying implementation from llm_core.py
     llm_manager = LLMManager()
     
     # Add the cog to the bot
