@@ -1,192 +1,156 @@
-# Aina Memory System
+# Aina - AI Assistant with Memory
 
-This document describes the memory architecture for Aina, the AI assistant with persistent memory.
+Aina is an AI assistant Discord bot with advanced memory capabilities, allowing it to remember conversations, learn about users, and maintain persistent knowledge.
 
-## Overview
+## 🌟 Features
 
-Aina's memory system is designed to retain information across conversations and provide a more personalized and human-like interaction experience. The system has four main memory types:
+- 💬 Natural conversation through Discord or terminal interface
+- 🧠 Advanced memory system with four memory types:
+  - Core Memory - Identity and values
+  - Episodic Memory - Recent experiences
+  - Semantic Memory - Long-term knowledge
+  - Personal Memory - User-specific information
+- ⏰ Alarm system with customizable settings
+- ⚔️ Quest system for fun interactive adventures
+- 👁️ Optional vision capabilities (webcam and screen analysis)
+- 🔊 Optional speech recognition and text-to-speech
 
-1. **Core Memory** - Identity, values, and fundamental knowledge about Aina
-2. **Episodic Memory** - Recent experiences and interactions
-3. **Semantic Memory** - Long-term knowledge and facts
-4. **Personal Memory** - User-specific information and preferences
+## 🔧 Installation
 
-## Architecture
+### Prerequisites
 
-The memory system is built around ChromaDB for vector storage and retrieval. Text is embedded using sentence-transformers to enable semantic search and similarity.
+- Python 3.9 or higher
+- Docker and Docker Compose (for Qdrant vector database)
+- Discord Bot Token and application
 
-### Components
+### Option 1: Using Docker (recommended)
 
-- **MemoryManager**: Central orchestration of all memory types
-- **ChromaDBStorage**: Interface to ChromaDB for persistence
-- **EmbeddingProvider**: Text embedding using sentence-transformers
-- **Memory Type Modules**: Specialized modules for each memory type
-- **Reflection**: Memory consolidation and analysis
-
-## Memory Types
-
-### Core Memory
-
-Core memory contains fundamental information about Aina's identity, values, and capabilities. This includes:
-
-- Self-concept and identity
-- Values and principles
-- Personality traits
-- Core capabilities
-
-Core memories have high importance scores and are prioritized during retrieval.
-
-### Episodic Memory
-
-Episodic memory stores recent experiences and interactions with users. This includes:
-
-- Conversations with users
-- Events and system activities
-- Command executions and responses
-- Important moments
-
-Episodic memories are time-sensitive and gradually decay in importance over time.
-
-### Semantic Memory
-
-Semantic memory stores factual information and knowledge. This includes:
-
-- Facts learned from conversations
-- Conceptual knowledge
-- Rules and guidelines
-- World knowledge
-
-Semantic memory is organized by categories and tags for efficient retrieval.
-
-### Personal Memory
-
-Personal memory stores user-specific information. This includes:
-
-- User preferences and traits
-- User interaction patterns
-- Important facts about users
-- User-specific instructions or rules
-
-Personal memories are associated with specific user IDs.
-
-## Reflection System
-
-The reflection system periodically analyzes memories to:
-
-1. Consolidate related memories
-2. Generate insights about users and interactions
-3. Identify patterns and important information
-4. Create summaries of recent activity
-
-Reflections occur daily and weekly, generating new semantic memories from insights.
-
-## Implementation Details
-
-### Data Storage
-
-- ChromaDB is used for vector storage and similarity search
-- Memories are stored in four collections (one per memory type)
-- Each memory includes text, metadata, and vector embeddings
-- File-based storage with JSON for reflections and configuration
-
-### Embedding
-
-- Sentence transformers (all-MiniLM-L6-v2) for text embedding
-- GPU acceleration when available
-- 384-dimensional embedding vectors
-- Cosine similarity for retrieval
-
-### Optimization
-
-- Lazy loading of models and components
-- CUDA acceleration for embeddings
-- Efficient vector search with filters
-- Memory importance scoring for prioritization
-
-## Usage
-
-### Storing Memories
-
-```python
-# Store a personal memory about a user
-memory_id = memory_manager.store_memory(
-    text="The user likes chocolate ice cream",
-    memory_type="personal",
-    metadata={
-        "user_id": "123456789",
-        "importance": 0.7,
-        "category": "preference" 
-    }
-)
+1. Clone the repository:
+```bash
+git clone https://github.com/Marisaki1/Aina.git
+cd Aina
 ```
 
-### Retrieving Memories
-
-```python
-# Search across all memory types
-memories = memory_manager.search_memories(
-    query="What does the user like?",
-    memory_types=["personal", "episodic"],
-    user_id="123456789",
-    limit=5
-)
+2. Create a `.env` file with your Discord token:
+```
+DISCORD_TOKEN=your_discord_token_here
 ```
 
-### Memory Reflection
-
-```python
-# Trigger a daily reflection
-reflection = memory_manager.trigger_reflection("daily")
+3. Start the services with Docker Compose:
+```bash
+docker-compose up -d
 ```
 
-## Configuration
-
-Memory system behavior can be configured through the `data/aina/config/memory_config.json` file:
-
-```json
-{
-  "base_memory_path": "data/aina/memories",
-  "embedding_model": "all-MiniLM-L6-v2",
-  "importance_threshold": 0.5,
-  "recency_weight": 0.3,
-  "relevance_weight": 0.5,
-  "importance_weight": 0.2,
-  "max_results": 10
-}
+4. Run the Discord bot:
+```bash
+docker build -t aina-bot .
+docker run --env-file .env --network=host aina-bot
 ```
 
-## Directory Structure
+### Option 2: Using Conda Environment
 
-```
-data/aina/
-├── memories/            # ChromaDB memory collections
-│   ├── core/            # Core identity memories
-│   ├── episodic/        # Recent experiences
-│   ├── semantic/        # Long-term knowledge
-│   └── personal/        # User-specific memories
-├── reflections/         # Periodic memory analysis
-│   ├── daily/           # Daily summaries
-│   └── weekly/          # Weekly memory consolidation
-├── config/
-│   ├── personality.json # Aina's personality settings
-│   └── memory_config.json # Memory thresholds & settings
-└── backups/             # Backup storage for memories
+1. Clone the repository:
+```bash
+git clone https://github.com/Marisaki1/Aina.git
+cd Aina
 ```
 
-## Integration with LLM
+2. Create and activate the conda environment:
+```bash
+conda env create -f environment.yml
+conda activate aina-env
+```
 
-The memory system integrates with the LLM through:
+3. Create a `.env` file with your Discord token:
+```
+DISCORD_TOKEN=your_discord_token_here
+```
 
-1. **Context enhancement**: Relevant memories are included in the prompt
-2. **Memory creation**: Important information from conversations is stored
-3. **User profiles**: User information influences responses
-4. **Reflection**: Insights guide future interactions
+4. Start Qdrant with Docker:
+```bash
+docker-compose up -d qdrant
+```
 
-## Hardware Optimization
+5. Run the Discord bot:
+```bash
+python aina_discord.py
+```
 
-The memory system is optimized for the RTX 4070 Super with:
+## 📋 Commands
 
-- GPU acceleration for embeddings
-- Efficient batch processing
-- Optimized vector operations
-- Appropriate memory usage for VRAM limitations
+### Conversation Commands
+- `!chat` - Start or continue a conversation with Aina
+- `!endchat` - End the current conversation
+
+### Alarm Commands
+- `!setalarm` - Set an alarm with various options
+- `!alarm_images` - Show available alarm images
+- `!alarms` - List all active alarms
+- `!editalarm` - Edit an existing alarm
+- `!removealarm` - Remove an alarm
+
+### Quest Commands
+- `!quests create` - Create new quest
+- `!quests list` - List available quests
+- `!quests select <quest_name>` - View quest details
+- `!quests start <quest_name> [p: @user1, @user2...]` - Start a quest
+- `!quests action <message/attachment>` - Log quest progress
+- `!quests complete` - Finish active quest
+- And many more! See `!help quests` for details
+
+### Memory Commands
+- `!memory search [query]` - Search Aina's memories
+- `!memory profile` - View what Aina knows about you
+- `!memory reflect` - Generate a reflection on recent memories
+
+## 🧠 Memory System Architecture
+
+Aina's memory system uses Qdrant vector database for semantic search and retrieval. Text is embedded using sentence-transformers to find similar memories.
+
+### Memory Types:
+
+1. **Core Memory**: Identity, values, and fundamental knowledge
+2. **Episodic Memory**: Recent experiences and interactions
+3. **Semantic Memory**: Long-term knowledge and facts
+4. **Personal Memory**: User-specific information and preferences
+
+## 🖥️ Terminal Interface
+
+Aina also provides a terminal interface for direct interaction:
+
+```bash
+python aina_terminal.py
+```
+
+Terminal commands start with `!` just like in Discord, but you can also chat directly by typing messages.
+
+## 📝 Configuration
+
+Configuration files can be found in the `data/aina/config` directory:
+- `memory_config.json` - Memory system settings
+- `personality.json` - Aina's personality traits
+
+## 🗂️ Project Structure
+
+```
+aina/
+├── aina_discord.py           # Discord bot entry point
+├── aina_terminal.py          # Terminal interface
+├── core/                     # Core functionality
+│   ├── agent.py              # Central agent logic
+│   ├── memory/               # Memory systems
+│   │   ├── memory_manager.py # Memory orchestration
+│   │   └── storage.py        # Qdrant interface
+│   └── llm/                  # Language model functionality
+├── cogs/                     # Discord command modules
+├── utils/                    # Utility functions
+└── data/                     # Data storage
+```
+
+## 📜 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- Special thanks to all contributors and supporters!

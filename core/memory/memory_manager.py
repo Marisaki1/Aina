@@ -5,7 +5,7 @@ from typing import Dict, List, Any, Optional, Union, Tuple
 import uuid
 
 from .embeddings import EmbeddingProvider
-from .storage import ChromaDBStorage
+from .storage import QdrantStorage
 
 class MemoryManager:
     """
@@ -22,7 +22,8 @@ class MemoryManager:
         """
         # Initialize default configuration
         self.config = {
-            "base_memory_path": "data/aina/memories",
+            "qdrant_url": "localhost",
+            "qdrant_port": 6333,
             "embedding_model": "all-MiniLM-L6-v2",
             "importance_threshold": 0.5,
             "recency_weight": 0.3,
@@ -42,7 +43,6 @@ class MemoryManager:
                 print(f"❌ Error loading memory configuration: {e}")
         
         # Create necessary directories
-        os.makedirs(self.config["base_memory_path"], exist_ok=True)
         os.makedirs("data/aina/reflections/daily", exist_ok=True)
         os.makedirs("data/aina/reflections/weekly", exist_ok=True)
         os.makedirs("data/aina/backups", exist_ok=True)
@@ -53,8 +53,9 @@ class MemoryManager:
         )
         
         # Initialize storage with embedding function
-        self.storage = ChromaDBStorage(
-            base_path=self.config["base_memory_path"],
+        self.storage = QdrantStorage(
+            url=self.config["qdrant_url"],
+            port=self.config["qdrant_port"],
             embedding_function=self.embedding_provider.get_embedding_function()
         )
         
