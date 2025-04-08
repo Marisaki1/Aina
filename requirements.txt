@@ -2,3 +2,7 @@ discord.py>=2.0.0
 python-dotenv
 pytz
 llama-cpp-python
+chromadb
+sentence-transformers
+torch
+numpy
