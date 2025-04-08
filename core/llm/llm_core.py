@@ -6,7 +6,7 @@ from llama_cpp import Llama
 from .prompt_templates import get_system_prompt
 
 # Constants
-DEFAULT_MODEL_PATH = "models/j.gguf"  # Update this with your actual GGUF filename
+DEFAULT_MODEL_PATH = "models/airoboros-mistral2.2-7b.Q4_K_S.gguf"  # Update this with your actual GGUF filename
 CONVERSATION_HISTORY_FILE = "data/conversations.json"
 TERMINAL_HISTORY_FILE = "data/terminal_history.json"
 HISTORY_LIMIT = 10  # Maximum number of messages to keep in history per user

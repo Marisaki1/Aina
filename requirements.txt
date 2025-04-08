@@ -1,13 +1,14 @@
+# Core
 discord.py>=2.0.0
 python-dotenv
 pytz
+
+# LLM
 llama-cpp-python
 
 # Memory & embeddings
-chromadb
+chromadb==1.0.3
 sentence-transformers
-torch
-numpy
 
 # Vision system
 opencv-python
