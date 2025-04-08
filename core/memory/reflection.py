@@ -3,6 +3,9 @@ import json
 import time
 from typing import Dict, List, Any, Optional
 import uuid
+import logging
+
+logger = logging.getLogger("aina.reflection")
 
 class Reflection:
     """
@@ -26,6 +29,30 @@ class Reflection:
         # Create reflection directories
         os.makedirs("data/aina/reflections/daily", exist_ok=True)
         os.makedirs("data/aina/reflections/weekly", exist_ok=True)
+        
+        # Initialize enhancer if we have LLM access
+        self.reflection_enhancer = None
+        self.has_enhancer = False
+        
+        logger.info("Reflection system initialized")
+    
+    def set_llm_manager(self, llm_manager):
+        """
+        Set LLM manager for enhanced reflections.
+        
+        Args:
+            llm_manager: LLMManager instance
+        """
+        # Import here to avoid circular imports
+        from utils.reflection_enhancer import ReflectionEnhancer
+        
+        try:
+            self.reflection_enhancer = ReflectionEnhancer(self.memory_manager, llm_manager)
+            self.has_enhancer = True
+            logger.info("Enhanced reflection system enabled")
+        except Exception as e:
+            logger.error(f"Failed to initialize reflection enhancer: {e}")
+            self.has_enhancer = False
     
     def create_reflection(self, reflection_type: str = 'daily') -> Dict[str, Any]:
         """
@@ -37,6 +64,28 @@ class Reflection:
         Returns:
             Reflection result
         """
+        # If enhancer is available, use it for better reflections
+        if self.has_enhancer and self.reflection_enhancer:
+            try:
+                logger.info(f"Creating enhanced {reflection_type} reflection")
+                reflection = self.reflection_enhancer.generate_enhanced_reflection(reflection_type)
+                
+                # Ensure ID is present
+                if "id" not in reflection:
+                    reflection["id"] = str(uuid.uuid4())
+                
+                # Save reflection to file
+                self._save_reflection(reflection)
+                
+                logger.info(f"Enhanced {reflection_type} reflection created successfully")
+                return reflection
+            except Exception as e:
+                logger.error(f"Enhanced reflection failed: {e}, falling back to basic reflection")
+                # Fall back to basic reflection
+        
+        # Basic reflection generation
+        logger.info(f"Creating basic {reflection_type} reflection")
+        
         # Determine time window based on reflection type
         if reflection_type == 'daily':
             hours = 24.0
@@ -109,7 +158,38 @@ class Reflection:
         # Add important insights to semantic memory
         self._store_insights(insights)
         
+        logger.info(f"Basic {reflection_type} reflection created successfully")
         return reflection
+    
+    def analyze_user(self, user_id: str) -> Dict[str, Any]:
+        """
+        Analyze a specific user's behavior and preferences.
+        
+        Args:
+            user_id: User ID to analyze
+            
+        Returns:
+            Analysis results
+        """
+        # Check if enhancer is available
+        if not self.has_enhancer or not self.reflection_enhancer:
+            return {
+                "status": "error",
+                "message": "Enhanced reflection system not available for user analysis"
+            }
+        
+        logger.info(f"Analyzing user {user_id}")
+        try:
+            # Use enhancer to analyze user
+            analysis = self.reflection_enhancer.analyze_user_behavior(user_id)
+            logger.info(f"User analysis completed for {user_id}")
+            return analysis
+        except Exception as e:
+            logger.error(f"Error analyzing user {user_id}: {e}")
+            return {
+                "status": "error",
+                "message": f"User analysis failed: {str(e)}"
+            }
     
     def _generate_summary(self, memories: List[Dict[str, Any]], reflection_type: str) -> str:
         """
@@ -289,7 +369,7 @@ class Reflection:
             with open(latest_file, 'r') as f:
                 return json.load(f)
         except Exception as e:
-            print(f"❌ Error loading reflection file {latest_file}: {e}")
+            logger.error(f"Error loading reflection file {latest_file}: {e}")
             return None
     
     def get_reflection(self, reflection_id: str) -> Optional[Dict[str, Any]]:
@@ -379,6 +459,6 @@ class Reflection:
                         "file_name": file_name
                     })
             except Exception as e:
-                print(f"❌ Error loading reflection file {file_path}: {e}")
+                logger.error(f"Error loading reflection file {file_path}: {e}")
         
         return reflections

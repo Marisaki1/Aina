@@ -2,7 +2,33 @@ discord.py>=2.0.0
 python-dotenv
 pytz
 llama-cpp-python
+
+# Memory & embeddings
 chromadb
 sentence-transformers
 torch
 numpy
+
+# Vision system
+opencv-python
+Pillow
+pytesseract
+transformers
+
+# Audio system
+SpeechRecognition
+pyttsx3
+gTTS
+pydub
+playsound==1.2.2
+
+# Dashboard & visualization
+flask
+
+# Utils
+nltk
+langdetect
+psutil
+
+# Optional NLP improvements
+spacy

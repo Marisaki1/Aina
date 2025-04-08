@@ -356,16 +356,27 @@ class MemoryManager:
         return all_memories[:limit]
     
     def trigger_reflection(self, reflection_type: str = 'daily') -> Dict[str, Any]:
-        """
-        Trigger a reflection process to consolidate and analyze memories.
-        
-        Args:
-            reflection_type: Type of reflection ('daily' or 'weekly')
+            """
+            Trigger a reflection process to consolidate and analyze memories.
             
-        Returns:
-            Reflection result
-        """
-        return self.reflection.create_reflection(reflection_type)
+            Args:
+                reflection_type: Type of reflection ('daily' or 'weekly')
+                
+            Returns:
+                Reflection result
+            """
+            try:
+                return self.reflection.create_reflection(reflection_type)
+            except Exception as e:
+                print(f"Error creating reflection: {e}")
+                # Return a minimal reflection object in case of error
+                return {
+                    "type": reflection_type,
+                    "timestamp": time.time(),
+                    "summary": f"Error creating reflection: {str(e)}",
+                    "insights": [],
+                    "memory_count": 0
+                }
     
     def backup_memories(self, backup_path: Optional[str] = None) -> bool:
         """
