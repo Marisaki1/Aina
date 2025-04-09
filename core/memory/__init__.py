@@ -4,7 +4,7 @@ from .episodic_memory import EpisodicMemory
 from .semantic_memory import SemanticMemory
 from .personal_memory import PersonalMemory
 from .reflection import Reflection
-from .storage import ChromaDBStorage
+from .storage import QdrantStorage
 from .embeddings import EmbeddingProvider
 
 __all__ = [
@@ -14,6 +14,6 @@ __all__ = [
     'SemanticMemory',
     'PersonalMemory',
     'Reflection',
-    'ChromaDBStorage',
+    'QdrantStorage',
     'EmbeddingProvider'
 ]
