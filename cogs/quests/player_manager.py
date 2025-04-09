@@ -35,7 +35,7 @@ class PlayerManager:
             "quests_started": 0,
             "quests_completed": 0,
             "achievements": [],
-            "location": "Town of Rivermeet",  # Add default location
+            "location": "Rivermeet",  # Add default location
             "created_at": timestamp,
             "last_active": timestamp
         }

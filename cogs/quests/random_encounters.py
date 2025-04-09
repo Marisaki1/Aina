@@ -73,9 +73,9 @@ class RandomEncounters(commands.Cog):
             player_data = self.player_manager.create_player(target_user_id, str(target_user_id))
         
         # Get or set player location
-        location = player_data.get("location", "Town of Rivermeet")
+        location = player_data.get("location", "Rivermeet")
         if "location" not in player_data:
-            player_data["location"] = "Town of Rivermeet"
+            player_data["location"] = "Rivermeet"
             self.player_manager.save_player_data(target_user_id, player_data)
         
         # Generate a scenario using the ScenarioMaker
@@ -357,9 +357,9 @@ class RandomEncounters(commands.Cog):
             player_data = self.player_manager.create_player(ctx.author.id, ctx.author.display_name)
         
         # Get or set player location
-        location = player_data.get("location", "Town of Rivermeet")
+        location = player_data.get("location", "Rivermeet")
         if "location" not in player_data:
-            player_data["location"] = "Town of Rivermeet"
+            player_data["location"] = "Rivermeet"
             self.player_manager.save_player_data(ctx.author.id, player_data)
         
         embed = create_embed(
@@ -384,7 +384,7 @@ class RandomEncounters(commands.Cog):
         """Set your character's location"""
         # List of allowed locations
         allowed_locations = [
-            "Town of Rivermeet", "Whispering Forest", "Dragonclaw Mountains", 
+            "Rivermeet", "Whispering Forest", "Dragonclaw Mountains", 
             "Crystal Caves", "Shadowmire Swamp", "Forgotten Ruins",
             "Sunlit Plains", "Frostpeak Village", "Emerald Sea"
         ]
@@ -413,7 +413,7 @@ class RandomEncounters(commands.Cog):
         if not player_data:
             player_data = self.player_manager.create_player(ctx.author.id, ctx.author.display_name)
         
-        old_location = player_data.get("location", "Town of Rivermeet")
+        old_location = player_data.get("location", "Rivermeet")
         player_data["location"] = best_match
         self.player_manager.save_player_data(ctx.author.id, player_data)
         
@@ -429,7 +429,7 @@ class RandomEncounters(commands.Cog):
     async def list_locations(self, ctx):
         """List all available locations"""
         locations = [
-            "Town of Rivermeet", "Whispering Forest", "Dragonclaw Mountains", 
+            "Rivermeet", "Whispering Forest", "Dragonclaw Mountains", 
             "Crystal Caves", "Shadowmire Swamp", "Forgotten Ruins",
             "Sunlit Plains", "Frostpeak Village", "Emerald Sea"
         ]
@@ -441,7 +441,7 @@ class RandomEncounters(commands.Cog):
         )
         
         # Group locations by type
-        towns = ["Town of Rivermeet", "Frostpeak Village"]
+        towns = ["Rivermeet", "Frostpeak Village"]
         wilderness = ["Whispering Forest", "Shadowmire Swamp", "Sunlit Plains", "Emerald Sea"]
         dangerous = ["Dragonclaw Mountains", "Crystal Caves", "Forgotten Ruins"]
         

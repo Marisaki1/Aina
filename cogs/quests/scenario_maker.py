@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple, Any
 class ScenarioMaker:
     def __init__(self):
         self.location_scenarios = {
-            "Town of Rivermeet": self._rivermeet_scenarios,
+            "Rivermeet": self._rivermeet_scenarios,
             "Whispering Forest": self._forest_scenarios,
             "Dragonclaw Mountains": self._mountain_scenarios,
             "Crystal Caves": self._cave_scenarios,
@@ -24,7 +24,7 @@ class ScenarioMaker:
         return scenario_generator()
     
     def _rivermeet_scenarios(self) -> Dict[str, Any]:
-        """Generate scenarios specific to Town of Rivermeet"""
+        """Generate scenarios specific to Rivermeet"""
         # 1. Select NPCs (1-2)
         npcs = [
             "Mayor Thadrick Goldvein", "Sister Maribel", "Garrick the Unseen",
