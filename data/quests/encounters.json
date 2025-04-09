@@ -166,19 +166,5 @@
             "3. \u274c Failure! Using Athletics / Acrobatics backfired."
         ],
         "success_index": 0
-    },
-    {
-        "timestamp": "2025-04-09T09:00:23.057268",
-        "location": "Town of Rivermeet",
-        "encounter_type": "Random Encounter",
-        "user_id": 113974200267571201,
-        "scenario": "You encounter The Black Eel and Captain Durnan at The Cliffside Catacombs. A ghost demands justice for an unsolved murder.",
-        "choices": "1. Use Thieves' Tools to handle the situation\n2. Use Stealth to handle the situation\n3. Use Religion to handle the situation",
-        "outcomes": [
-            "1. \u2705 Success! Using Thieves' Tools / Lockpicking worked perfectly.",
-            "2. \u274c Failure! Using Stealth / Sleight of Hand backfired.",
-            "3. \u274c Failure! Using Religion / History backfired."
-        ],
-        "success_index": 0
     }
 ]

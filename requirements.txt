@@ -1,37 +1,3 @@
-# Core
-discord.py>=2.3.1
-python-dotenv>=1.0.0
+discord.py>=2.0.0
+python-dotenv
 pytz
-
-# LLM
-llama-cpp-python==0.2.11
-ctransformers==0.2.27
-
-# Memory & embeddings
-qdrant-client==1.2.0
-sentence-transformers==2.2.2
-langchain==0.0.274
-
-# Vision system (optional)
-opencv-python
-Pillow
-pytesseract
-transformers>=4.30.2
-huggingface-hub>=0.14.1
-
-# Audio system (optional)
-SpeechRecognition
-pyttsx3
-gTTS
-pydub
-playsound==1.2.2
-
-# Utils
-nltk
-pydantic==1.10.8
-loguru==0.7.0
-pytest==7.3.1
-psutil
-
-# Dashboard (optional)
-flask

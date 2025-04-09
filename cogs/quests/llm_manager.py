@@ -1,6 +1,6 @@
 # cogs/quests/llm_manager.py
 import asyncio
-from core.llm.llm_core import LLMManager as CoreLLMManager
+from cogs.conversation.llm_core import LLMManager as CoreLLMManager
 
 class LLMManager(CoreLLMManager):
     """

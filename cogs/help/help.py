@@ -30,8 +30,8 @@ class Help(commands.Cog):
             embed.add_field(name="⏰ Alarm Commands", value=alarm_commands, inline=False)
             
             chat_commands = (
-                "`!chat` - Talk with Aina\n"
-                "`!endchat` - End your conversation with Aina"
+                "`!chat` - Talk with Aina (disabled)\n"
+                "`!endchat` - End your conversation with Aina (disabled)"
             )
             embed.add_field(name="💬 Conversation Commands", value=chat_commands, inline=False)
 

@@ -27,8 +27,6 @@ ENV/
 # Data files
 #data/
 
-# Conversation data (removed from tracking)
-data/conversations.json
 
-# Models directory (no longer needed)
+# models files
 models/
