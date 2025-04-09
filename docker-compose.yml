@@ -12,6 +12,13 @@ services:
     environment:
       - QDRANT_ALLOW_RECOVERY_MODE=true
     restart: unless-stopped
+    # Add resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
 
 volumes:
   qdrant_storage:

@@ -1,4 +1,7 @@
 import os
+import sys
+import time
+import traceback
 import torch
 from typing import List, Union, Callable, Optional
 from sentence_transformers import SentenceTransformer
@@ -24,7 +27,10 @@ class EmbeddingProvider:
             # Check if CUDA is available
             if torch.cuda.is_available():
                 device = "cuda"
+                gpu_info = torch.cuda.get_device_properties(0)
+                vram_gb = gpu_info.total_memory / (1024**3)
                 print(f"✅ Using GPU for embeddings: {torch.cuda.get_device_name(0)}")
+                print(f"   VRAM: {vram_gb:.2f} GB")
             else:
                 device = "cpu"
                 print("⚠️ No GPU detected, using CPU for embeddings")
@@ -33,14 +39,28 @@ class EmbeddingProvider:
             os.makedirs("models/embeddings", exist_ok=True)
             
             print(f"🔄 Loading embedding model '{self.model_name}'...")
+            
+            # Add pooling strategy for better embeddings
+            from sentence_transformers import models, SentenceTransformer
+            
+            # Load full model
             self.model = SentenceTransformer(
                 self.model_name, 
                 cache_folder="models/embeddings",
                 device=device
             )
-            print(f"✅ Embedding model loaded successfully")
+            
+            print(f"✅ Embedding model loaded successfully on {device}")
+            
+            # Test embedding to verify
+            test_start = time.time()
+            _ = self.model.encode(["Test embedding"], convert_to_tensor=True)
+            test_time = time.time() - test_start
+            print(f"✅ Embedding test completed in {test_time:.2f} seconds")
+            
         except Exception as e:
             print(f"❌ Error loading embedding model: {e}")
+            traceback.print_exc()  # Add this to see full error trace
             self.model = None
     
     def embed_text(self, text: Union[str, List[str]]) -> Union[List[float], List[List[float]]]:
@@ -65,6 +85,17 @@ class EmbeddingProvider:
                     return [0.0] * 384
         
         try:
+            # Check if we have the embedding in cache
+            # Only use cache if we have a memory_manager reference and proper attributes
+            if hasattr(self, 'memory_manager') and self.memory_manager is not None and hasattr(self.memory_manager, 'embedding_cache'):
+                # For single text
+                if isinstance(text, str) and text in self.memory_manager.embedding_cache:
+                    return self.memory_manager.embedding_cache[text]
+                
+                # For multiple texts
+                if isinstance(text, list) and len(text) == 1 and text[0] in self.memory_manager.embedding_cache:
+                    return [self.memory_manager.embedding_cache[text[0]]]
+            
             # Ensure text is a list
             if isinstance(text, str):
                 text = [text]
@@ -76,6 +107,16 @@ class EmbeddingProvider:
             # Convert numpy arrays to lists for JSON serialization
             result = embeddings.tolist()
             
+            # Store in cache if it's a single text
+            if hasattr(self, 'memory_manager') and self.memory_manager is not None and hasattr(self.memory_manager, 'embedding_cache') and len(text) == 1:
+                # Add to cache (with size limit check)
+                if len(self.memory_manager.embedding_cache) >= self.memory_manager.cache_size_limit:
+                    # Remove a random item from cache to make space
+                    if self.memory_manager.embedding_cache:
+                        self.memory_manager.embedding_cache.pop(next(iter(self.memory_manager.embedding_cache)))
+                
+                self.memory_manager.embedding_cache[text[0]] = result[0]
+            
             # If only one text was provided, return just that embedding
             if len(result) == 1 and isinstance(text, list) and len(text) == 1:
                 return result[0]
@@ -83,6 +124,14 @@ class EmbeddingProvider:
             return result
         except Exception as e:
             print(f"❌ Error generating embeddings: {e}")
+            if hasattr(sys, 'tracebacklimit'):
+                traceback_original = sys.tracebacklimit
+                sys.tracebacklimit = None
+                traceback.print_exc()
+                sys.tracebacklimit = traceback_original
+            else:
+                traceback.print_exc()
+                
             if len(text) > 1:
                 return [[0.0] * 384 for _ in range(len(text))]
             else:
@@ -167,3 +216,7 @@ class EmbeddingProvider:
         similarities = np.clip(similarities, 0.0, 1.0)
         
         return similarities.tolist()
+    
+    def set_memory_manager(self, memory_manager):
+        """Set the memory manager reference for caching."""
+        self.memory_manager = memory_manager

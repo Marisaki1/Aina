@@ -46,13 +46,20 @@ class MemoryManager:
         os.makedirs("data/aina/reflections/daily", exist_ok=True)
         os.makedirs("data/aina/reflections/weekly", exist_ok=True)
         os.makedirs("data/aina/backups", exist_ok=True)
+
+        # Add embedding cache
+        self.embedding_cache = {}
+        self.cache_size_limit = 1000  # Cache at most 1000 embeddings
         
-        # Initialize embedding provider
+        # FIRST: Initialize embedding provider
         self.embedding_provider = EmbeddingProvider(
             model_name=self.config["embedding_model"]
         )
+
+        # SECOND: Set memory manager reference for caching
+        self.embedding_provider.set_memory_manager(self)
         
-        # Initialize storage with embedding function
+        # THIRD: Initialize storage with embedding function
         self.storage = QdrantStorage(
             url=self.config["qdrant_url"],
             port=self.config["qdrant_port"],
@@ -66,8 +73,8 @@ class MemoryManager:
         self._personal_memory = None
         self._reflection = None
         
-        print("✅ Memory Manager initialized")
-    
+        print("✅ Memory Manager initialized with embedding cache")
+        
     @property
     def core_memory(self):
         """Lazy-loaded core memory module."""

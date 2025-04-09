@@ -1,8 +1,10 @@
 import os
 import json
 import time
+import traceback
 from typing import Dict, List, Any, Optional, Union
 from llama_cpp import Llama
+import torch
 from .prompt_templates import get_system_prompt
 
 # Constants
@@ -65,20 +67,42 @@ class LLMManager:
             print(f"🔄 Loading LLM model from {self.model_path}...")
             start_time = time.time()
             
+            # Check for CUDA
+            if not torch.cuda.is_available():
+                print("⚠️ CUDA not available! Using CPU only mode.")
+                gpu_layers = 0
+            else:
+                gpu_info = torch.cuda.get_device_properties(0)
+                print(f"✅ GPU detected: {torch.cuda.get_device_name(0)}")
+                print(f"   VRAM: {gpu_info.total_memory / (1024**3):.2f} GB")
+                # For RTX 4070 Super with 12GB VRAM, use more GPU layers
+                gpu_layers = 15  # Increased from 15 to utilize more GPU
+            
             # Initialize the model with settings optimized for RTX 4070 Super
             self._model = Llama(
                 model_path=self.model_path,
-                n_ctx=10000,        # Context window size
-                n_batch=256,        # Batch size for prompt processing
-                n_threads=4,        # CPU threads - matches your cores
-                n_gpu_layers=15     # Higher value for RTX 4070 Super
+                n_ctx=4096,         # Reduced from 10000 to avoid memory pressure
+                n_batch=512,        # Increased from 256 for better throughput
+                n_threads=8,        # Increased from 4 for better CPU utilization
+                n_gpu_layers=gpu_layers,
+                use_mlock=True,     # Added to keep model in memory
+                verbose=True        # Added to get more diagnostic information
             )
             
             load_time = time.time() - start_time
             print(f"✅ Model loaded in {load_time:.2f} seconds")
+            print(f"🔄 Using {gpu_layers} GPU layers")
+            
+            # Quick test to verify GPU is working
+            test_start = time.time()
+            _ = self._model.create_completion("Test", max_tokens=1)
+            test_time = time.time() - test_start
+            print(f"✅ GPU test completed in {test_time:.2f} seconds")
+            
             return True
         except Exception as e:
             print(f"❌ Error loading model: {e}")
+            traceback.print_exc()  # Add this to see full error trace
             self._model = None
             raise e
     
@@ -128,12 +152,15 @@ class LLMManager:
         
         # Add relevant memories if memory manager is available
         if self.memory_manager and prompt:
-            memories = self._retrieve_relevant_memories(user_id, prompt)
-            if memories:
-                memory_text = self._format_memories(memories)
-                full_prompt += f"Relevant memories:\n{memory_text}\n\n"
+            # Only retrieve memories for substantial prompts (more than 3 words)
+            if len(prompt.split()) > 3:
+                memories = self._retrieve_relevant_memories(user_id, prompt)
+                if memories:
+                    memory_text = self._format_memories(memories)
+                    full_prompt += f"Relevant memories:\n{memory_text}\n\n"
         
-        # Add conversation history
+        # Add conversation history (limit to last 5 exchanges to reduce context size)
+        history = history[-10:]  # Last 5 exchanges (10 messages: 5 user, 5 assistant)
         for entry in history:
             if entry["role"] == "user":
                 full_prompt += f"User: {entry['content']}\n"
@@ -144,12 +171,23 @@ class LLMManager:
         full_prompt += f"User: {prompt}\nAina:"
         
         try:
-            # Generate response
+            # Check context length and truncate if needed
+            while len(full_prompt.split()) > 2000:  # Approximate token count
+                # Remove oldest history entry (2 lines)
+                lines = full_prompt.split('\n')
+                if len(lines) > 4:  # Keep system prompt and current exchange
+                    full_prompt = '\n'.join(lines[:2] + lines[4:])
+                else:
+                    break
+            
+            # Generate response with optimized parameters
             response = self.model.create_completion(
                 full_prompt,
                 max_tokens=1024,
                 temperature=0.7,
                 top_p=0.95,
+                top_k=40,           # Added parameter for better sampling
+                repeat_penalty=1.1,  # Added parameter to reduce repetition
                 stop=["User:", "\n\n"]
             )
             
@@ -167,6 +205,7 @@ class LLMManager:
         except Exception as e:
             error_msg = f"❌ Error generating response: {e}"
             print(error_msg)
+            traceback.print_exc()  # Add this to see full error trace
             return f"I'm sorry, I encountered an error while processing your request: {str(e)}"
     
     def get_conversation_history(self, user_id: str, interface_type: str = "discord") -> List[Dict[str, Any]]:
