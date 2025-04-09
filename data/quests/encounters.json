@@ -166,5 +166,89 @@
             "3. \u274c Failure! Using Athletics / Acrobatics backfired."
         ],
         "success_index": 0
+    },
+    {
+        "timestamp": "2025-04-09T23:45:14.513478",
+        "location": "Town of Rivermeet",
+        "encounter_type": "Random Encounter",
+        "user_id": 113974200267571201,
+        "scenario": "You encounter Sister Maribel at The Governor's Vineyard. A ghost demands justice for an unsolved murder.",
+        "choices": "1. Use Religion to handle the situation\n2. Use Stealth to handle the situation\n3. Use Survival to handle the situation",
+        "outcomes": [
+            "1. \u274c Failure! Using Religion / History backfired.",
+            "2. \u274c Failure! Using Stealth / Sleight of Hand backfired.",
+            "3. \u2705 Success! Using Survival / Animal Handling worked perfectly."
+        ],
+        "success_index": 2
+    },
+    {
+        "timestamp": "2025-04-09T23:46:22.576846",
+        "location": "Town of Rivermeet",
+        "encounter_type": "Random Event",
+        "user_id": 113974200267571201,
+        "scenario": "You encounter Old Ma Tusk and Garrick the Unseen at The Glassblade Forge. A noble is secretly a vampire spawn.",
+        "choices": "1. Use Persuasion to handle the situation\n2. Use Athletics to handle the situation\n3. Use Thieves' Tools to handle the situation",
+        "outcomes": [
+            "1. \u274c Failure! Using Persuasion / Deception backfired.",
+            "2. \u274c Failure! Using Athletics / Acrobatics backfired.",
+            "3. \u2705 Success! Using Thieves' Tools / Lockpicking worked perfectly."
+        ],
+        "success_index": 2
+    },
+    {
+        "timestamp": "2025-04-09T23:47:38.507254",
+        "location": "Town of Rivermeet",
+        "encounter_type": "Random Event",
+        "user_id": 113974200267571201,
+        "scenario": "You encounter The Black Eel at The Fisherman's Guild. A rival adventuring party is sabotaging the PCs.",
+        "choices": "1. Use Performance to handle the situation\n2. Use Medicine to handle the situation\n3. Use Athletics to handle the situation",
+        "outcomes": [
+            "1. \u274c Failure! Using Performance / Disguise Kit backfired.",
+            "2. \u2705 Success! Using Medicine / Perception worked perfectly.",
+            "3. \u274c Failure! Using Athletics / Acrobatics backfired."
+        ],
+        "success_index": 1
+    },
+    {
+        "timestamp": "2025-04-09T23:48:54.520939",
+        "location": "Town of Rivermeet",
+        "encounter_type": "Random Event",
+        "user_id": 113974200267571201,
+        "scenario": "You encounter Old Ma Tusk at The Abandoned Lighthouse. A child's imaginary friend is actually a fey spirit.",
+        "choices": "1. Use Persuasion to handle the situation\n2. Use Religion to handle the situation\n3. Use Stealth to handle the situation",
+        "outcomes": [
+            "1. \u274c Failure! Using Persuasion / Deception backfired.",
+            "2. \u2705 Success! Using Religion / History worked perfectly.",
+            "3. \u274c Failure! Using Stealth / Sleight of Hand backfired."
+        ],
+        "success_index": 1
+    },
+    {
+        "timestamp": "2025-04-09T23:49:42.463611",
+        "location": "Town of Rivermeet",
+        "encounter_type": "Random Event",
+        "user_id": 113974200267571201,
+        "scenario": "You encounter Old Ma Tusk and Sister Maribel at The Glassblade Forge. A doppelg\u00e4nger has replaced a key NPC.",
+        "choices": "1. Use Medicine to handle the situation\n2. Use Stealth to handle the situation\n3. Use Performance to handle the situation",
+        "outcomes": [
+            "1. \u2705 Success! Using Medicine / Perception worked perfectly.",
+            "2. \u274c Failure! Using Stealth / Sleight of Hand backfired.",
+            "3. \u274c Failure! Using Performance / Disguise Kit backfired."
+        ],
+        "success_index": 0
+    },
+    {
+        "timestamp": "2025-04-09T23:50:54.576775",
+        "location": "Town of Rivermeet",
+        "encounter_type": "Random Event",
+        "user_id": 113974200267571201,
+        "scenario": "You encounter Captain Durnan at The Cliffside Catacombs. A local gang is extorting businesses.",
+        "choices": "1. Use Thieves' Tools to handle the situation\n2. Use Athletics to handle the situation\n3. Use Stealth to handle the situation",
+        "outcomes": [
+            "1. \u2705 Success! Using Thieves' Tools / Lockpicking worked perfectly.",
+            "2. \u274c Failure! Using Athletics / Acrobatics backfired.",
+            "3. \u274c Failure! Using Stealth / Sleight of Hand backfired."
+        ],
+        "success_index": 0
     }
 ]
