@@ -1,0 +1,25 @@
+{
+    "Artificer": {
+        "name": "Artificer",
+        "level": 1,
+        "xp": 0,
+        "ability_scores": {
+            "strength": 10,
+            "dexterity": 11,
+            "constitution": 11,
+            "intelligence": 11,
+            "wisdom": 10,
+            "charisma": 10
+        },
+        "skills": {
+            "Arcana": 1,
+            "Investigation": 1,
+            "History": 1,
+            "Nature": 1,
+            "Sleight of Hand": 1
+        },
+        "equipment": [],
+        "abilities": [],
+        "appearance_url": "https://cdn.discordapp.com/attachments/650568208692019222/1359768363668209805/00138-1626153813.png?ex=67f8ae79&is=67f75cf9&hm=7ff8825e13f91333dc10a55ed0511a42fb11d7684f58ba980d8dd95a95a0d015&"
+    }
+}

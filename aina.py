@@ -29,10 +29,11 @@ async def load_cogs():
         await bot.load_extension("cogs.help.help")
         await bot.load_extension("cogs.alarms.alarms")
         await bot.load_extension("cogs.alarms.scheduler")
+        
         # Load quest cogs
         await bot.load_extension("cogs.quests.quests")
-        # Load the random encounters cog
-        await bot.load_extension("cogs.quests.random_encounters")        
+        await bot.load_extension("cogs.quests.class_commands")  # Added this line to load the class commands
+        await bot.load_extension("cogs.quests.random_encounters")
         
         # Load events cog
         await bot.load_extension("cogs.events")

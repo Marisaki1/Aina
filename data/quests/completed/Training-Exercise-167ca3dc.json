@@ -4,31 +4,18 @@
     "difficulty": "Normal",
     "description": "Papayat na tayo Angie",
     "participants": [
-        113974200267571201
+        195509169955143681
     ],
-    "leader_id": 113974200267571201,
-    "start_time": "2025-04-05T17:27:49.240889",
-    "end_time": "2025-04-05T18:27:49.240889",
+    "leader_id": 195509169955143681,
+    "start_time": "2025-04-10T12:00:21.355081",
+    "end_time": "2025-04-10T13:00:21.355081",
     "actions": [
         {
-            "user_id": 113974200267571201,
-            "username": "Marisaki",
-            "timestamp": "2025-04-05T17:28:34.513146",
-            "content": "we fat",
+            "user_id": 195509169955143681,
+            "username": "Shuu",
+            "timestamp": "2025-04-10T12:00:39.753915",
+            "content": "Exercise",
             "attachments": []
-        },
-        {
-            "user_id": 113974200267571201,
-            "username": "Marisaki",
-            "timestamp": "2025-04-05T17:29:24.416346",
-            "content": "tara coffee na lang",
-            "attachments": [
-                {
-                    "url": "https://cdn.discordapp.com/attachments/776421259935875085/1358010627163164682/00011-452823865.png?ex=67f24974&is=67f0f7f4&hm=6bda55a27c2c525ce7f98ed8bf7c049350b7084f11943fa310db5fc4b1ce7072&",
-                    "filename": "00011-452823865.png",
-                    "content_type": "image/png"
-                }
-            ]
         }
     ],
     "status": "completed",
@@ -36,5 +23,5 @@
         "gold": 100,
         "xp": 200
     },
-    "completion_time": "2025-04-05T17:29:40.712653"
+    "completion_time": "2025-04-10T12:04:02.819766"
 }

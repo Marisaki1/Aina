@@ -1,0 +1,25 @@
+{
+    "encounter_rewards": {
+        "base_xp": 100,
+        "level_multiplier": 2,
+        "base_gold": 10
+    },
+    "quest_rewards": {
+        "Easy": {
+            "base_xp": 100,
+            "base_gold": 50
+        },
+        "Normal": {
+            "base_xp": 200,
+            "base_gold": 100
+        },
+        "Hard": {
+            "base_xp": 350,
+            "base_gold": 200
+        },
+        "Lunatic": {
+            "base_xp": 500,
+            "base_gold": 350
+        }
+    }
+}

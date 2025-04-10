@@ -1,0 +1,11 @@
+{
+    "encounter_chance": 5,
+    "cooldown_minutes": 2,
+    "expiration_minutes": 2,
+    "auto_delete_minutes": 1,
+    "min_xp_reward": 100,
+    "max_xp_reward": 300,
+    "min_gold_reward": 10,
+    "max_gold_reward": 50,
+    "enabled": true
+}

@@ -1,0 +1,86 @@
+{
+    "Rivermeet": {
+        "levels": [
+            {
+                "min": 1,
+                "max": 3,
+                "correct_choices": 1
+            },
+            {
+                "min": 4,
+                "max": 6,
+                "correct_choices": 2
+            },
+            {
+                "min": 7,
+                "max": 9,
+                "correct_choices": 3
+            }
+        ],
+        "min_dc": 10,
+        "max_dc": 18
+    },
+    "Whispering Forest": {
+        "levels": [
+            {
+                "min": 1,
+                "max": 4,
+                "correct_choices": 1
+            },
+            {
+                "min": 5,
+                "max": 8,
+                "correct_choices": 2
+            },
+            {
+                "min": 9,
+                "max": 12,
+                "correct_choices": 3
+            }
+        ],
+        "min_dc": 12,
+        "max_dc": 20
+    },
+    "Dragonclaw Mountains": {
+        "levels": [
+            {
+                "min": 4,
+                "max": 7,
+                "correct_choices": 1
+            },
+            {
+                "min": 8,
+                "max": 12,
+                "correct_choices": 2
+            },
+            {
+                "min": 13,
+                "max": 16,
+                "correct_choices": 3
+            }
+        ],
+        "min_dc": 14,
+        "max_dc": 22
+    },
+    "Default": {
+        "levels": [
+            {
+                "min": 1,
+                "max": 5,
+                "correct_choices": 1
+            },
+            {
+                "min": 6,
+                "max": 10,
+                "correct_choices": 2
+            },
+            {
+                "min": 11,
+                "max": 20,
+                "correct_choices": 3
+            }
+        ],
+        "min_dc": 10,
+        "max_dc": 20
+    }
+}

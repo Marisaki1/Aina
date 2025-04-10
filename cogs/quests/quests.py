@@ -23,7 +23,6 @@ class Quests(commands.Cog):
         os.makedirs("data/quests/ongoing", exist_ok=True)
         os.makedirs("data/quests/channels", exist_ok=True)
         
-        
     @commands.group(name="quests", aliases=["quest", "q"], invoke_without_command=True)
     async def quests(self, ctx):
         """Quest system commands"""
@@ -44,13 +43,26 @@ class Quests(commands.Cog):
                 "**!quests complete** - Complete the active quest\n"
                 "**!quests cancel** - Cancel the active quest\n"
                 "**!quests inventory** - Check your items and gold\n"
-                "**!quests player info** - View your player stats"
+                "**!quests player info** - View your player stats\n"
+                "**!quests new** - Create a new character class"
             ),
             inline=False
         )
         
         embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
         await ctx.send(embed=embed)
+
+    # Add this new command that redirects to the ClassCommands cog's new_class command
+    @quests.command(name="new")
+    async def new_quest_class(self, ctx):
+        """Create a new character class"""
+        # Get the ClassCommands cog
+        class_commands_cog = self.bot.get_cog("ClassCommands")
+        if class_commands_cog:
+            # Call the new_class method directly
+            await class_commands_cog.new_class(ctx)
+        else:
+            await ctx.send("❌ Character class system is not available. Please contact an administrator.")
 
     @quests.command(name="create")
     async def create_quest(self, ctx):

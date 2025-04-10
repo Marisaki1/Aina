@@ -19,91 +19,91 @@ class ClassManager:
         """Initialize class manager with available classes and their default stats"""
         self.classes = {
             "Barbarian": {
-                "description": "A fierce warrior who can enter a battle rage",
+                "description": "🪓 A fierce warrior who can enter a battle rage",
                 "primary_abilities": [AbilityScore.STRENGTH, AbilityScore.CONSTITUTION],
                 "bonus_ability": AbilityScore.DEXTERITY,
                 "starting_skills": ["Athletics", "Intimidation", "Survival", "Nature", "Perception"],
                 "image_url": "https://example.com/barbarian.png"
             },
             "Bard": {
-                "description": "A magical performer whose music inspires allies and hinders foes",
+                "description": "🎭 A magical performer whose music inspires allies and hinders foes",
                 "primary_abilities": [AbilityScore.CHARISMA, AbilityScore.DEXTERITY],
                 "bonus_ability": AbilityScore.CONSTITUTION,
                 "starting_skills": ["Performance", "Persuasion", "Deception", "Insight", "Arcana"],
                 "image_url": "https://example.com/bard.png"
             },
             "Cleric": {
-                "description": "A divine champion who wields holy magic",
+                "description": "🙏 A divine champion who wields holy magic",
                 "primary_abilities": [AbilityScore.WISDOM, AbilityScore.CHARISMA],
                 "bonus_ability": AbilityScore.CONSTITUTION,
                 "starting_skills": ["Religion", "Medicine", "Insight", "Persuasion", "History"],
                 "image_url": "https://example.com/cleric.png"
             },
             "Druid": {
-                "description": "A guardian of nature with powerful elemental and animal magic",
+                "description": "🌿 A guardian of nature with powerful elemental and animal magic",
                 "primary_abilities": [AbilityScore.WISDOM, AbilityScore.CONSTITUTION],
                 "bonus_ability": AbilityScore.DEXTERITY,
                 "starting_skills": ["Nature", "Animal Handling", "Survival", "Perception", "Medicine"],
                 "image_url": "https://example.com/druid.png"
             },
             "Fighter": {
-                "description": "A master of martial combat with exceptional weapon prowess",
+                "description": "⚔️ A master of martial combat with exceptional weapon prowess",
                 "primary_abilities": [AbilityScore.STRENGTH, AbilityScore.CONSTITUTION],
                 "bonus_ability": AbilityScore.DEXTERITY,
                 "starting_skills": ["Athletics", "Intimidation", "Acrobatics", "Survival", "Perception"],
                 "image_url": "https://example.com/fighter.png"
             },
             "Monk": {
-                "description": "A martial artist who harnesses the power of body and mind",
+                "description": "👊 A martial artist who harnesses the power of body and mind",
                 "primary_abilities": [AbilityScore.DEXTERITY, AbilityScore.WISDOM],
                 "bonus_ability": AbilityScore.STRENGTH,
                 "starting_skills": ["Acrobatics", "Stealth", "Religion", "Insight", "Athletics"],
                 "image_url": "https://example.com/monk.png"
             },
             "Paladin": {
-                "description": "A holy warrior bound by sacred oaths",
+                "description": "✝️ A holy warrior bound by sacred oaths",
                 "primary_abilities": [AbilityScore.STRENGTH, AbilityScore.CHARISMA],
                 "bonus_ability": AbilityScore.CONSTITUTION,
                 "starting_skills": ["Religion", "Persuasion", "Intimidation", "Medicine", "Insight"],
                 "image_url": "https://example.com/paladin.png"
             },
             "Ranger": {
-                "description": "A skilled hunter and wilderness tracker",
+                "description": "🏹 A skilled hunter and wilderness tracker",
                 "primary_abilities": [AbilityScore.DEXTERITY, AbilityScore.WISDOM],
                 "bonus_ability": AbilityScore.STRENGTH,
                 "starting_skills": ["Nature", "Animal Handling", "Stealth", "Survival", "Perception"],
                 "image_url": "https://example.com/ranger.png"
             },
             "Rogue": {
-                "description": "A skilled infiltrator and master of sneak attacks",
+                "description": "🗡️ A skilled infiltrator and master of sneak attacks",
                 "primary_abilities": [AbilityScore.DEXTERITY, AbilityScore.INTELLIGENCE],
                 "bonus_ability": AbilityScore.CHARISMA,
                 "starting_skills": ["Stealth", "Sleight of Hand", "Acrobatics", "Deception", "Perception"],
                 "image_url": "https://example.com/rogue.png"
             },
             "Sorcerer": {
-                "description": "A spellcaster with innate magical ability",
+                "description": "🔮 A spellcaster with innate magical ability",
                 "primary_abilities": [AbilityScore.CHARISMA, AbilityScore.CONSTITUTION],
                 "bonus_ability": AbilityScore.DEXTERITY,
                 "starting_skills": ["Arcana", "Persuasion", "Insight", "Deception", "Religion"],
                 "image_url": "https://example.com/sorcerer.png"
             },
             "Warlock": {
-                "description": "A wielder of magic bestowed by an otherworldly patron",
+                "description": "😈 A wielder of magic bestowed by an otherworldly patron",
                 "primary_abilities": [AbilityScore.CHARISMA, AbilityScore.CONSTITUTION],
                 "bonus_ability": AbilityScore.WISDOM,
                 "starting_skills": ["Arcana", "Deception", "Intimidation", "Religion", "Investigation"],
                 "image_url": "https://example.com/warlock.png"
             },
             "Wizard": {
-                "description": "A scholarly magic-user capable of powerful spells",
+                "description": "📚 A scholarly magic-user capable of powerful spells",
                 "primary_abilities": [AbilityScore.INTELLIGENCE, AbilityScore.WISDOM],
                 "bonus_ability": AbilityScore.CONSTITUTION,
                 "starting_skills": ["Arcana", "History", "Investigation", "Religion", "Medicine"],
                 "image_url": "https://example.com/wizard.png"
             },
             "Artificer": {
-                "description": "A master of magical invention and imbuing objects with power",
+                "description": "⚙️ A master of magical invention and imbuing objects with power",
                 "primary_abilities": [AbilityScore.INTELLIGENCE, AbilityScore.DEXTERITY],
                 "bonus_ability": AbilityScore.CONSTITUTION,
                 "starting_skills": ["Arcana", "Investigation", "History", "Nature", "Sleight of Hand"],

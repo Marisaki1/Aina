@@ -1,0 +1,10 @@
+{
+    "starting_ability_score": 10,
+    "max_ability_score": 20,
+    "primary_ability_bonus": 1,
+    "starting_skill_points": 1,
+    "xp_per_level": 100,
+    "level_up_ability_points": 1,
+    "level_up_skill_points": 1,
+    "reset_cost_multiplier": 50
+}
