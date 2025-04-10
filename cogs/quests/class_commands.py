@@ -116,6 +116,7 @@ class ClassCommands(commands.Cog):
             await ctx.send(embed=embed)
             return
         
+        # [Class selection code remains unchanged]
         # If no class specified and player has only one class, use that
         if not class_name and len(player_classes) == 1:
             class_name = list(player_classes.keys())[0]
@@ -175,10 +176,23 @@ class ClassCommands(commands.Cog):
         # Get class data
         class_data = player_classes[class_name]
         
-        # Create detailed embed
+        # Calculate derived stats
+        ability_scores = class_data.get("ability_scores", {})
+        constitution = ability_scores.get("constitution", 10)
+        intelligence = ability_scores.get("intelligence", 10)
+        wisdom = ability_scores.get("wisdom", 10)
+        charisma = ability_scores.get("charisma", 10)
+        dexterity = ability_scores.get("dexterity", 10)
+        
+        # Calculate HP, MP, AC
+        hp = constitution * 5
+        mp = max(intelligence, wisdom, charisma) * 5
+        ac = (dexterity + 1) // 2 + 5  # Integer division rounds down, so add 1 first to effectively round up
+        
+        # Create beautiful embed with clean layout
         embed = create_embed(
-            title=f"🧙‍♂️ {ctx.author.display_name}'s {class_name}",
-            description=f"Level {class_data.get('level', 1)} {class_name}",
+            title=f"📊 {ctx.author.display_name}'s {class_name}",
+            description=f"**Level {class_data.get('level', 1)} {class_name}**\n**HP:** {hp} | **MP:** {mp} | **AC:** {ac}",
             color=discord.Color.blue()
         )
         
@@ -193,7 +207,7 @@ class ClassCommands(commands.Cog):
         
         # Create progress bar
         progress = min(1.0, xp / xp_needed)
-        bar_length = 10
+        bar_length = 15
         filled = int(bar_length * progress)
         progress_bar = "█" * filled + "░" * (bar_length - filled)
         
@@ -203,15 +217,13 @@ class ClassCommands(commands.Cog):
             inline=True
         )
         
-        # Add ability scores
-        ability_scores = class_data.get("ability_scores", {})
+        # Add ability scores in a clean format
         ability_text = ""
-        
         for ability in AbilityScore:
             score = ability_scores.get(ability.value, 10)
             modifier = self.class_manager.get_ability_modifier(score)
             sign = "+" if modifier >= 0 else ""
-            ability_text += f"**{ability.value.capitalize()}:** {score} ({sign}{modifier})\n"
+            ability_text += f"**{ability.value[:3].upper()}:** {score} ({sign}{modifier})\n"
         
         embed.add_field(
             name="Ability Scores",
@@ -219,38 +231,27 @@ class ClassCommands(commands.Cog):
             inline=True
         )
         
-        # Add skills
+        # Add top skills (not all skills)
         skills = class_data.get("skills", {})
         if skills:
-            skill_text = ""
+            top_skills = []
+            for skill_name, skill_points in sorted(skills.items(), key=lambda x: x[1], reverse=True)[:5]:
+                if skill_points > 0:
+                    ability = self.class_manager.get_ability_for_skill(skill_name)
+                    ability_mod = self.class_manager.get_ability_modifier(ability_scores.get(ability.value, 10))
+                    total = skill_points + ability_mod
+                    top_skills.append(f"**{skill_name}:** {skill_points} ({'+' if total >= 0 else ''}{total})")
             
-            # Group by ability
-            skills_by_ability = {}
-            for skill_name, skill_points in skills.items():
-                if skill_points <= 0:
-                    continue
-                    
-                ability = self.class_manager.get_ability_for_skill(skill_name)
-                if ability not in skills_by_ability:
-                    skills_by_ability[ability] = []
-                
-                bonus = self.class_manager.get_skill_bonus(class_data, skill_name)
-                skills_by_ability[ability].append((skill_name, skill_points, bonus))
-            
-            # Format by ability
-            for ability, skill_list in skills_by_ability.items():
-                skill_text += f"**{ability.value.capitalize()}:** "
-                skill_entries = []
-                
-                for skill_name, points, bonus in skill_list:
-                    skill_entries.append(f"{skill_name} +{bonus} ({points})")
-                
-                skill_text += ", ".join(skill_entries) + "\n"
-            
-            if skill_text:
+            if top_skills:
+                embed.add_field(
+                    name="Top Skills",
+                    value="\n".join(top_skills) + "\n\n*Use `!class skills` to view all skills*",
+                    inline=False
+                )
+            else:
                 embed.add_field(
                     name="Skills",
-                    value=skill_text,
+                    value="No skills trained yet.\n*Use `!class skills` to view all skills*",
                     inline=False
                 )
         
@@ -258,14 +259,179 @@ class ClassCommands(commands.Cog):
         embed.add_field(
             name="Commands",
             value=(
+                "`!class skills` - View all your skills\n"
                 "`!class appearance <class>` - Set class appearance\n"
-                "`!class reset <class>` - Reset skill and ability distribution (costs gold)\n"
+                "`!class reset <class>` - Reset skill & ability distribution"
             ),
             inline=False
         )
         
         await ctx.send(embed=embed)
-    
+
+    @class_cmd.command(name="skills")
+    async def class_skills(self, ctx, *, class_name: str = None):
+        """View all skills for a specific class"""
+        # Get player classes
+        player_classes = self.player_class_handler.get_player_classes(ctx.author.id)
+        
+        if not player_classes:
+            embed = create_embed(
+                title="🧙‍♂️ No Character Classes",
+                description=f"{ctx.author.mention}, you don't have any character classes yet. Use `!quests new` to create your first character class!",
+                color=discord.Color.orange()
+            )
+            await ctx.send(embed=embed)
+            return
+        
+        # If no class specified and player has only one class, use that
+        if not class_name and len(player_classes) == 1:
+            class_name = list(player_classes.keys())[0]
+        elif not class_name:
+            # Ask which class they want to view skills for
+            class_names = list(player_classes.keys())
+            class_list = "\n".join([f"**{i+1}.** {name}" for i, name in enumerate(class_names)])
+            
+            embed = create_embed(
+                title="🧙‍♂️ Select Class",
+                description=f"Which class would you like to view skills for?\n\n{class_list}\n\nType the number or name of the class.",
+                color=discord.Color.blue()
+            )
+            selection_message = await ctx.send(embed=embed)
+            
+            def check(m):
+                return m.author == ctx.author and m.channel == ctx.channel
+            
+            try:
+                response = await self.bot.wait_for('message', check=check, timeout=30.0)
+                
+                # Try to parse as number or name
+                try:
+                    index = int(response.content) - 1
+                    if 0 <= index < len(class_names):
+                        class_name = class_names[index]
+                    else:
+                        raise ValueError
+                except ValueError:
+                    # Try as name
+                    found = False
+                    for name in class_names:
+                        if name.lower() == response.content.lower():
+                            class_name = name
+                            found = True
+                            break
+                    
+                    if not found:
+                        await ctx.send(f"❌ '{response.content}' is not a valid class. Please try again.")
+                        return
+            
+            except asyncio.TimeoutError:
+                await ctx.send("⏱️ Selection timed out.")
+                return
+            finally:
+                try:
+                    await selection_message.delete()
+                    await response.delete()
+                except:
+                    pass
+        
+        # Check if the player has this class
+        if class_name not in player_classes:
+            await ctx.send(f"❌ You don't have a {class_name} class.")
+            return
+        
+        # Get class data
+        class_data = player_classes[class_name]
+        ability_scores = class_data.get("ability_scores", {})
+        skills = class_data.get("skills", {})
+        
+        # Define all skills and their associated abilities
+        all_skills = {
+            "Acrobatics": "dexterity",
+            "Animal Handling": "wisdom",
+            "Arcana": "intelligence",
+            "Athletics": "strength",
+            "Deception": "charisma",
+            "History": "intelligence",
+            "Insight": "wisdom",
+            "Intimidation": "charisma",
+            "Investigation": "intelligence",
+            "Medicine": "wisdom",
+            "Nature": "intelligence",
+            "Perception": "wisdom",
+            "Performance": "charisma",
+            "Persuasion": "charisma",
+            "Religion": "intelligence",
+            "Sleight of Hand": "dexterity",
+            "Stealth": "dexterity",
+            "Survival": "wisdom"
+        }
+        
+        # Group skills by ability
+        skills_by_ability = {
+            "strength": [],
+            "dexterity": [],
+            "intelligence": [],
+            "wisdom": [],
+            "charisma": []
+        }
+        
+        # Populate skills with their values
+        for skill_name, ability in all_skills.items():
+            skill_points = skills.get(skill_name, 0)
+            ability_score = ability_scores.get(ability, 10)
+            ability_mod = self.class_manager.get_ability_modifier(ability_score)
+            total_bonus = skill_points + ability_mod
+            
+            # Add to the appropriate ability group
+            if ability in skills_by_ability:
+                skills_by_ability[ability].append((skill_name, skill_points, total_bonus))
+        
+        # Create a beautiful skills embed
+        embed = create_embed(
+            title=f"🎯 {ctx.author.display_name}'s {class_name} Skills",
+            description=(
+                f"Your skill values are calculated as:\n"
+                f"**Skill Points + Ability Modifier = Total**\n"
+            ),
+            color=discord.Color.blue()
+        )
+        
+        # Add appearance if available
+        if class_data.get("appearance_url"):
+            embed.set_thumbnail(url=class_data["appearance_url"])
+        
+        # Create skill sections for each ability
+        ability_names = {
+            "strength": "💪 Strength",
+            "dexterity": "🏃 Dexterity",
+            "intelligence": "🧠 Intelligence",
+            "wisdom": "🦉 Wisdom",
+            "charisma": "✨ Charisma"
+        }
+        
+        # Add each ability section with formatted skills
+        for ability, skill_list in skills_by_ability.items():
+            if skill_list:
+                skill_text = ""
+                for skill_name, points, bonus in sorted(skill_list, key=lambda x: x[0]):  # Sort by skill name
+                    # Format skill name in bold if player has points in it
+                    name_format = f"**{skill_name}**" if points > 0 else skill_name
+                    sign = "+" if bonus >= 0 else ""
+                    skill_text += f"{name_format}: {points} {sign}{bonus}\n"
+                
+                if skill_text:
+                    embed.add_field(
+                        name=ability_names.get(ability, ability.capitalize()),
+                        value=skill_text,
+                        inline=True
+                    )
+        
+        # Add a helpful note at the bottom
+        embed.set_footer(text=f"Bold skills indicate trained skills • Level {class_data.get('level', 1)} {class_name}")
+        
+        await ctx.send(embed=embed)
+
+
     @class_cmd.command(name="appearance")
     async def class_appearance(self, ctx, *, class_name: str = None):
         """Set the appearance for a character class"""

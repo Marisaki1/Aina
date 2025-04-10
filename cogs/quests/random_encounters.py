@@ -32,21 +32,26 @@ class NewRandomEncounters(commands.Cog):
         # Stop the task when the cog is unloaded
         self.spawn_random_encounter.cancel()
     
-    @tasks.loop(seconds=30)  # Check every 30 seconds for possible encounter
+    @tasks.loop(seconds=5)  # Check more frequently for more precise timing
     async def spawn_random_encounter(self):
         """Periodically check if it's time to spawn a random encounter"""
+        current_time = datetime.now()
+        
         # Process all guilds and channels concurrently
         tasks = []
         for guild in self.bot.guilds:
             for channel in guild.text_channels:
-                tasks.append(self._process_channel_for_encounter(channel))
+                tasks.append(self._process_channel_for_encounter(channel, current_time))
         
         await asyncio.gather(*tasks)
 
-    async def _process_channel_for_encounter(self, channel):
+    async def _process_channel_for_encounter(self, channel, current_time):
         """Check and potentially spawn an encounter in a single channel"""
+        # Get channel settings
+        channel_settings = self._get_channel_settings(channel.guild.id, channel.id)
+        
         # Skip if channel is not enabled
-        if not self._is_channel_enabled(channel.guild.id, channel.id):
+        if not channel_settings or not channel_settings.get("enabled", False):
             return
         
         # Skip if there's already an active encounter in this channel
@@ -55,19 +60,54 @@ class NewRandomEncounters(commands.Cog):
             
         # Skip if channel is on cooldown
         if channel.id in self.encounter_cooldowns:
-            if datetime.now() < self.encounter_cooldowns[channel.id]:
+            if current_time < self.encounter_cooldowns[channel.id]:
                 return
             else:
                 # Cooldown expired
                 del self.encounter_cooldowns[channel.id]
         
-        # Random chance to spawn an encounter (approx 5% chance per check, which is every 30 seconds)
-        if random.randint(1, 20) == 1:
+        # Get encounter chance based on timing settings
+        encounter_seconds = channel_settings.get("encounter_seconds", 300)  # Default: 5 minutes
+        
+        # Calculate chance as percentage of the check interval relative to encounter time
+        # With a 5-second check interval and 5-minute encounter time, chance would be 5/(5*60) = 1.67%
+        check_interval = 5  # The task.loop interval in seconds
+        spawn_chance = (check_interval / encounter_seconds) * 100
+        
+        # Check if an encounter should spawn
+        if random.random() * 100 <= spawn_chance:
             try:
-                # Create a pending encounter (not assigned to any specific user yet)
-                await self.create_pending_encounter(channel)
+                # Check for active human users first
+                active_users = await self.get_active_users(channel)
+                if active_users:
+                    # Create a pending encounter
+                    await self.create_pending_encounter(channel)
             except Exception as e:
                 print(f"Error creating pending encounter in {channel.name}: {e}")
+
+    def _get_channel_settings(self, guild_id, channel_id):
+        """Get timing settings for a channel"""
+        try:
+            # Check if the channels file exists
+            if not os.path.exists(self.QUEST_CHANNELS_FILE):
+                return None
+                
+            # Load the enabled channels
+            with open(self.QUEST_CHANNELS_FILE, 'r') as f:
+                enabled_channels = json.load(f)
+                
+            # Convert IDs to strings for comparison
+            guild_id_str = str(guild_id)
+            channel_id_str = str(channel_id)
+            
+            # Return channel settings if found
+            if guild_id_str in enabled_channels and channel_id_str in enabled_channels[guild_id_str]:
+                return enabled_channels[guild_id_str][channel_id_str]
+                
+            return None
+        except Exception as e:
+            print(f"Error getting channel settings: {e}")
+            return None
     
     async def create_pending_encounter(self, channel):
         """Create and send a 'something is about to happen' encounter message"""
@@ -289,8 +329,14 @@ class NewRandomEncounters(commands.Cog):
                 # Remove from active encounters
                 del self.active_encounters[channel_id]
                 
-                # Set a cooldown for this channel to prevent immediate new encounters
-                self.encounter_cooldowns[channel_id] = datetime.now() + timedelta(minutes=2)
+                # Get channel settings for cooldown
+                channel = self.bot.get_channel(channel_id)
+                if channel:
+                    channel_settings = self._get_channel_settings(channel.guild.id, channel_id)
+                    cooldown_seconds = channel_settings.get("cooldown_seconds", 600) if channel_settings else 600
+                    
+                    # Set a cooldown for this channel
+                    self.encounter_cooldowns[channel_id] = datetime.now() + timedelta(seconds=cooldown_seconds)
             except Exception as e:
                 print(f"Error expiring encounter: {e}")
                 # Still try to clean up
@@ -387,21 +433,18 @@ class NewRandomEncounters(commands.Cog):
                 
                 # Check if player meets the DC with their skill (simplified version)
                 player_skill = self._get_player_skill_level(player_data, skill_name)
-                
-                # Roll d20 + skill modifier
-                skill_roll = random.randint(1, 20) + player_skill
-                
+            
                 # Success if roll meets or exceeds DC
-                success = skill_roll >= skill_dc
+                success = player_skill >= skill_dc
                 
                 # Create result message
                 if success:
                     outcome_text = selected_choice.get("success_outcome", "You succeed at the task.")
-                    result_title = f"✅ Success! ({skill_name} check: {skill_roll} vs DC {skill_dc})"
+                    result_title = f"✅ Success! ({skill_name}: {player_skill} meets DC {skill_dc})"
                     result_color = discord.Color.green()
                 else:
                     outcome_text = selected_choice.get("failure_outcome", "You fail at the task.")
-                    result_title = f"❌ Failed Skill Check ({skill_name}: {skill_roll} vs DC {skill_dc})"
+                    result_title = f"❌ Failed Skill Check ({skill_name}: {player_skill} vs DC {skill_dc})"
                     result_color = discord.Color.red()
             else:
                 # For incorrect choices, always fail
@@ -485,28 +528,26 @@ class NewRandomEncounters(commands.Cog):
 
     def _get_player_skill_level(self, player_data, skill_name):
         """
-        Calculate a player's effective skill level.
-        This is a placeholder implementation that should be expanded with the
-        actual player skill system.
+        Calculate a player's effective skill level without rolling dice.
         """
         if not player_data:
             return 0
             
-        # Get player level as base
-        player_level = player_data.get("level", 1)
-        
-        # Get skills from player data (to be implemented with class system)
+        # Get base skill points
         skills = player_data.get("skills", {})
-        
-        # Get specific skill bonus if it exists
-        skill_bonus = skills.get(skill_name, 0)
+        skill_points = skills.get(skill_name, 0)
         
         # Get ability score bonus
         ability_score_bonus = self._get_ability_score_bonus(player_data, skill_name)
         
-        # Calculate total
-        # Formula: level/4 (rounded down) + skill bonus + ability score bonus
-        return player_level // 4 + skill_bonus + ability_score_bonus
+        # Include level bonus (level/4 rounded down)
+        player_level = player_data.get("level", 1)
+        level_bonus = player_level // 4
+        
+        # Calculate total skill level
+        total_skill = skill_points + ability_score_bonus + level_bonus
+        
+        return total_skill
     
     def _get_ability_score_bonus(self, player_data, skill_name):
         """Get the ability score bonus for a specific skill"""

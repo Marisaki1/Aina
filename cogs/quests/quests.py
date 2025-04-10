@@ -1,3 +1,4 @@
+import re
 import discord
 from discord.ext import commands
 import asyncio
@@ -1125,18 +1126,82 @@ class Quests(commands.Cog):
 
     @quests.command(name="enable")
     @commands.has_permissions(manage_channels=True)
-    async def enable_quests(self, ctx):
-        """Enable random encounters in this channel"""
-        self.set_channel_enabled(ctx.guild.id, ctx.channel.id, True)
+    async def enable_quests(self, ctx, *, options=None):
+        """
+        Enable random encounters in this channel with optional timing parameters.
         
+        Usage:
+        !quests enable - Enable with default timing
+        !quests enable t: mm:ss c: mm:ss - Set timing and cooldown
+        """
+        guild_id = ctx.guild.id
+        channel_id = ctx.channel.id
+        
+        # Default values
+        encounter_time = "05:00"  # 5 minutes
+        cooldown_time = "10:00"  # 10 minutes
+        
+        # Parse options if provided
+        if options:
+            # Extract timing parameter (t:)
+            time_match = re.search(r't:\s*(\d{2}:\d{2})', options)
+            if time_match:
+                encounter_time = time_match.group(1)
+                
+            # Extract cooldown parameter (c:)
+            cooldown_match = re.search(r'c:\s*(\d{2}:\d{2})', options)
+            if cooldown_match:
+                cooldown_time = cooldown_match.group(1)
+        
+        # Parse the time values to seconds
+        try:
+            encounter_minutes, encounter_seconds = map(int, encounter_time.split(':'))
+            encounter_total_seconds = encounter_minutes * 60 + encounter_seconds
+            
+            cooldown_minutes, cooldown_seconds = map(int, cooldown_time.split(':'))
+            cooldown_total_seconds = cooldown_minutes * 60 + cooldown_seconds
+            
+            if encounter_total_seconds < 1 or cooldown_total_seconds < 1:
+                return await ctx.send(embed=create_embed(
+                    title="❌ Invalid Time Values",
+                    description="Time and cooldown values must be at least 1 second.",
+                    color=discord.Color.red()
+                ))
+        except ValueError:
+            return await ctx.send(embed=create_embed(
+                title="❌ Invalid Format",
+                description="Please use the format `!quests enable t: mm:ss c: mm:ss`",
+                color=discord.Color.red()
+            ))
+        
+        # Enable the channel and save timing settings
+        timing_data = {
+            "enabled": True,
+            "encounter_time": encounter_time,
+            "encounter_seconds": encounter_total_seconds,
+            "cooldown_time": cooldown_time,
+            "cooldown_seconds": cooldown_total_seconds
+        }
+        
+        self.set_channel_enabled(guild_id, channel_id, True, timing_data)
+        
+        # Create a beautiful confirmation embed
         embed = create_embed(
             title="✅ Random Encounters Enabled",
-            description=f"Random encounters are now enabled in this channel.",
+            description=f"Random encounters are now enabled in this channel with custom timing.",
             color=discord.Color.green()
         )
         
+        embed.add_field(
+            name="⏱️ Encounter Timing",
+            value=f"**Frequency:** Every {encounter_minutes}m {encounter_seconds}s\n**Cooldown:** {cooldown_minutes}m {cooldown_seconds}s after each encounter",
+            inline=False
+        )
+        
+        embed.set_footer(text="Use '!quests disable' to turn off random encounters in this channel")
+        
         # If you want to notify the random encounters cog about this change
-        random_encounters_cog = self.bot.get_cog("RandomEncounters")
+        random_encounters_cog = self.bot.get_cog("NewRandomEncounters")
         if random_encounters_cog:
             random_encounters_cog.refresh_enabled_channels()
         
@@ -1192,8 +1257,8 @@ class Quests(commands.Cog):
         # If channel has specific configuration, use it
         return channel_id in enabled_channels[guild_id]
 
-    def set_channel_enabled(self, guild_id, channel_id, enabled=True):
-        """Enable or disable random encounters for a specific channel"""
+    def set_channel_enabled(self, guild_id, channel_id, enabled=True, timing_data=None):
+        """Enable or disable random encounters for a specific channel, with optional timing data"""
         guild_id = str(guild_id)
         channel_id = str(channel_id)
         
@@ -1201,18 +1266,453 @@ class Quests(commands.Cog):
         
         # Initialize guild entry if it doesn't exist
         if guild_id not in enabled_channels:
-            enabled_channels[guild_id] = []
+            enabled_channels[guild_id] = {}
         
         # Add or remove the channel from the enabled list
-        if enabled and channel_id not in enabled_channels[guild_id]:
-            enabled_channels[guild_id].append(channel_id)
-        elif not enabled and channel_id in enabled_channels[guild_id]:
-            enabled_channels[guild_id].remove(channel_id)
+        if enabled:
+            if timing_data:
+                enabled_channels[guild_id][channel_id] = timing_data
+            else:
+                # Default timing data
+                enabled_channels[guild_id][channel_id] = {
+                    "enabled": True,
+                    "encounter_time": "05:00",  # 5 minutes
+                    "encounter_seconds": 300,
+                    "cooldown_time": "10:00",  # 10 minutes
+                    "cooldown_seconds": 600
+                }
+        elif channel_id in enabled_channels[guild_id]:
+            del enabled_channels[guild_id][channel_id]
         
         # Save the changes
         self._save_enabled_channels(enabled_channels)
         
         return enabled
+
+    # Add this to the Quests class in quests.py
+
+    @quests.command(name="profile", aliases=["me"])
+    async def interactive_profile(self, ctx):
+        """Interactive profile with navigation reactions"""
+        user = ctx.author
+        
+        # Create initial embed with player info
+        embed = await self._create_player_info_embed(user)
+        
+        # Send the message
+        profile_message = await ctx.send(embed=embed)
+        
+        # Add navigation reactions
+        reactions = {
+            "👤": "profile",  # Profile
+            "🧙‍♂️": "class",   # Class Info
+            "🎯": "skills",   # Skills
+            "🎒": "inventory" # Inventory
+        }
+        
+        for emoji in reactions.keys():
+            await profile_message.add_reaction(emoji)
+        
+        def check(reaction, reactor):
+            return (reactor == user and 
+                    str(reaction.emoji) in reactions and 
+                    reaction.message.id == profile_message.id)
+        
+        # Wait for reactions
+        while True:
+            try:
+                reaction, reactor = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
+                
+                # Remove the user's reaction
+                try:
+                    await profile_message.remove_reaction(reaction.emoji, reactor)
+                except:
+                    pass  # Ignore if we can't remove it
+                
+                # Get the page type
+                page_type = reactions[str(reaction.emoji)]
+                
+                # Update the embed based on reaction
+                if page_type == "profile":
+                    embed = await self._create_player_info_embed(user)
+                elif page_type == "class":
+                    embed = await self._create_class_info_embed(user)
+                elif page_type == "skills":
+                    embed = await self._create_skills_embed(user)
+                elif page_type == "inventory":
+                    embed = await self._create_inventory_embed(user)
+                
+                # Update the message
+                await profile_message.edit(embed=embed)
+                
+            except asyncio.TimeoutError:
+                # After timeout, remove our reactions and stop listening
+                try:
+                    await profile_message.clear_reactions()
+                except:
+                    pass
+                break
+
+    # Helper methods for creating the various embeds
+    async def _create_player_info_embed(self, user):
+        """Create player info embed"""
+        player_data = self.player_manager.get_player_data(user.id)
+        
+        if not player_data:
+            player_data = self.player_manager.create_player(user.id, user.display_name)
+        
+        # Calculate level based on XP
+        xp = player_data.get("xp", 0)
+        level = max(1, 1 + int((xp / 100) ** 0.5))
+        next_level_xp = ((level) ** 2) * 100
+        prev_level_xp = ((level-1) ** 2) * 100
+        xp_needed = next_level_xp - prev_level_xp
+        xp_progress = min(1.0, (xp - prev_level_xp) / max(1, xp_needed)) 
+        
+        # Create progress bar
+        progress_bar_length = 15
+        filled_blocks = int(xp_progress * progress_bar_length)
+        progress_bar = "█" * filled_blocks + "░" * (progress_bar_length - filled_blocks)
+        
+        # Create player info embed
+        embed = create_embed(
+            title=f"👤 {user.display_name}'s Profile",
+            description=f"Level {level} Adventurer\n*Click reactions below to navigate*",
+            color=discord.Color.blue()
+        )
+        
+        # Add avatar if available
+        if user.avatar:
+            embed.set_thumbnail(url=user.avatar.url)
+        
+        # Add stats section
+        embed.add_field(
+            name="📊 Stats",
+            value=(
+                f"**Level:** {level}\n"
+                f"**XP:** {xp:,} / {next_level_xp:,}\n"
+                f"**Progress:** {progress_bar} {int(xp_progress*100)}%\n"
+                f"**Gold:** 🪙 {player_data.get('gold', 0):,}"
+            ),
+            inline=True
+        )
+        
+        # Add quest stats
+        quests_started = player_data.get("quests_started", 0)
+        quests_completed = player_data.get("quests_completed", 0)
+        completion_rate = (quests_completed / quests_started * 100) if quests_started > 0 else 0
+        
+        embed.add_field(
+            name="🔍 Quest History",
+            value=(
+                f"**Started:** {quests_started}\n"
+                f"**Completed:** {quests_completed}\n"
+                f"**Completion Rate:** {completion_rate:.1f}%\n"
+                f"**Active Quest:** {'Yes' if self.quest_manager.get_user_active_quest(user.id) else 'No'}"
+            ),
+            inline=True
+        )
+        
+        # Add navigation guide
+        embed.add_field(
+            name="📋 Navigation",
+            value=(
+                "👤 Profile\n"
+                "🧙‍♂️ Class Info\n"
+                "🎯 Skills\n"
+                "🎒 Inventory"
+            ),
+            inline=False
+        )
+        
+        return embed
+
+    async def _create_class_info_embed(self, user):
+        """Create class info embed"""
+        # Get the ClassCommands cog
+        class_commands_cog = self.bot.get_cog("ClassCommands")
+        if not class_commands_cog:
+            return create_embed(
+                title="❌ Class System Unavailable",
+                description="The class system is currently unavailable.",
+                color=discord.Color.red()
+            )
+        
+        # Get player classes
+        player_classes = class_commands_cog.player_class_handler.get_player_classes(user.id)
+        
+        if not player_classes:
+            return create_embed(
+                title="🧙‍♂️ No Character Classes",
+                description=f"{user.mention}, you don't have any character classes yet. Use `!quests new` to create your first character class!",
+                color=discord.Color.orange()
+            )
+        
+        # If only one class, use that, otherwise use the first one
+        if len(player_classes) == 1:
+            class_name = list(player_classes.keys())[0]
+        else:
+            class_name = list(player_classes.keys())[0]
+        
+        # Get class data
+        class_data = player_classes[class_name]
+        
+        # Calculate derived stats
+        ability_scores = class_data.get("ability_scores", {})
+        constitution = ability_scores.get("constitution", 10)
+        intelligence = ability_scores.get("intelligence", 10)
+        wisdom = ability_scores.get("wisdom", 10)
+        charisma = ability_scores.get("charisma", 10)
+        dexterity = ability_scores.get("dexterity", 10)
+        
+        # Calculate HP, MP, AC
+        hp = constitution * 5
+        mp = max(intelligence, wisdom, charisma) * 5
+        ac = (dexterity + 1) // 2 + 5
+        
+        # Create class info embed
+        embed = create_embed(
+            title=f"🧙‍♂️ {user.display_name}'s {class_name}",
+            description=f"**Level {class_data.get('level', 1)} {class_name}**\n**HP:** {hp} | **MP:** {mp} | **AC:** {ac}\n*Click reactions below to navigate*",
+            color=discord.Color.blue()
+        )
+        
+        # Add appearance if available
+        if class_data.get("appearance_url"):
+            embed.set_thumbnail(url=class_data["appearance_url"])
+        
+        # Add XP info
+        level = class_data.get("level", 1)
+        xp = class_data.get("xp", 0)
+        xp_needed = class_commands_cog.class_manager.get_xp_for_next_level(level)
+        
+        # Create progress bar
+        progress = min(1.0, xp / xp_needed)
+        bar_length = 15
+        filled = int(bar_length * progress)
+        progress_bar = "█" * filled + "░" * (bar_length - filled)
+        
+        embed.add_field(
+            name="Experience",
+            value=f"**Level:** {level}\n**XP:** {xp}/{xp_needed}\n**Progress:** {progress_bar} {int(progress*100)}%",
+            inline=True
+        )
+        
+        # Add ability scores
+        ability_text = ""
+        for ability in ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]:
+            score = ability_scores.get(ability, 10)
+            modifier = (score - 10) // 2
+            sign = "+" if modifier >= 0 else ""
+            ability_text += f"**{ability[:3].upper()}:** {score} ({sign}{modifier})\n"
+        
+        embed.add_field(
+            name="Ability Scores",
+            value=ability_text,
+            inline=True
+        )
+        
+        # Add navigation guide
+        embed.add_field(
+            name="📋 Navigation",
+            value=(
+                "👤 Profile\n"
+                "🧙‍♂️ Class Info\n"
+                "🎯 Skills\n"
+                "🎒 Inventory"
+            ),
+            inline=False
+        )
+        
+        return embed
+
+    async def _create_skills_embed(self, user):
+        """Create skills embed"""
+        # Get the ClassCommands cog
+        class_commands_cog = self.bot.get_cog("ClassCommands")
+        if not class_commands_cog:
+            return create_embed(
+                title="❌ Class System Unavailable",
+                description="The class system is currently unavailable.",
+                color=discord.Color.red()
+            )
+        
+        # Get player classes
+        player_classes = class_commands_cog.player_class_handler.get_player_classes(user.id)
+        
+        if not player_classes:
+            return create_embed(
+                title="🧙‍♂️ No Character Classes",
+                description=f"{user.mention}, you don't have any character classes yet. Use `!quests new` to create your first character class!",
+                color=discord.Color.orange()
+            )
+        
+        # If only one class, use that, otherwise use the first one
+        if len(player_classes) == 1:
+            class_name = list(player_classes.keys())[0]
+        else:
+            class_name = list(player_classes.keys())[0]
+        
+        # Get class data
+        class_data = player_classes[class_name]
+        ability_scores = class_data.get("ability_scores", {})
+        skills = class_data.get("skills", {})
+        
+        # Create skills embed
+        embed = create_embed(
+            title=f"🎯 {user.display_name}'s {class_name} Skills",
+            description=f"Level {class_data.get('level', 1)} {class_name}\n*Click reactions below to navigate*",
+            color=discord.Color.blue()
+        )
+        
+        # Add appearance if available
+        if class_data.get("appearance_url"):
+            embed.set_thumbnail(url=class_data["appearance_url"])
+        
+        # Define all skills and their associated abilities
+        all_skills = {
+            "Acrobatics": "dexterity",
+            "Animal Handling": "wisdom",
+            "Arcana": "intelligence",
+            "Athletics": "strength",
+            "Deception": "charisma",
+            "History": "intelligence",
+            "Insight": "wisdom",
+            "Intimidation": "charisma",
+            "Investigation": "intelligence",
+            "Medicine": "wisdom",
+            "Nature": "intelligence",
+            "Perception": "wisdom",
+            "Performance": "charisma",
+            "Persuasion": "charisma",
+            "Religion": "intelligence",
+            "Sleight of Hand": "dexterity",
+            "Stealth": "dexterity",
+            "Survival": "wisdom"
+        }
+        
+        # Group skills by ability
+        skills_by_ability = {
+            "strength": [],
+            "dexterity": [],
+            "intelligence": [],
+            "wisdom": [],
+            "charisma": []
+        }
+        
+        # Populate skills with their values
+        for skill_name, ability in all_skills.items():
+            skill_points = skills.get(skill_name, 0)
+            ability_score = ability_scores.get(ability, 10)
+            ability_mod = (ability_score - 10) // 2
+            total_bonus = skill_points + ability_mod
+            
+            # Add to the appropriate ability group
+            if ability in skills_by_ability:
+                skills_by_ability[ability].append((skill_name, skill_points, total_bonus))
+        
+        # Display skills by ability
+        ability_names = {
+            "strength": "💪 Strength",
+            "dexterity": "🏃 Dexterity",
+            "intelligence": "🧠 Intelligence",
+            "wisdom": "🦉 Wisdom",
+            "charisma": "✨ Charisma"
+        }
+        
+        # Add each ability section with formatted skills
+        for ability, skill_list in skills_by_ability.items():
+            if skill_list:
+                skill_text = ""
+                for skill_name, points, bonus in sorted(skill_list, key=lambda x: x[0]):
+                    name_format = f"**{skill_name}**" if points > 0 else skill_name
+                    sign = "+" if bonus >= 0 else ""
+                    skill_text += f"{name_format}: {points} ({sign}{bonus})\n"
+                
+                if skill_text:
+                    embed.add_field(
+                        name=ability_names.get(ability, ability.capitalize()),
+                        value=skill_text,
+                        inline=True
+                    )
+        
+        # Add navigation guide
+        embed.add_field(
+            name="📋 Navigation",
+            value=(
+                "👤 Profile\n"
+                "🧙‍♂️ Class Info\n"
+                "🎯 Skills\n"
+                "🎒 Inventory"
+            ),
+            inline=False
+        )
+        
+        return embed
+
+    async def _create_inventory_embed(self, user):
+        """Create inventory embed"""
+        player_data = self.player_manager.get_player_data(user.id)
+        
+        if not player_data:
+            player_data = self.player_manager.create_player(user.id, user.display_name)
+        
+        # Create inventory embed
+        embed = create_embed(
+            title=f"🎒 {user.display_name}'s Inventory",
+            description="Your collected treasures and rewards\n*Click reactions below to navigate*",
+            color=discord.Color.gold()
+        )
+        
+        # Add currency section
+        embed.add_field(
+            name="💰 Currency",
+            value=f"**Gold:** 🪙 {player_data.get('gold', 0):,}",
+            inline=False
+        )
+        
+        # Add items section
+        items = player_data.get("items", [])
+        if not items:
+            embed.add_field(
+                name="📦 Items",
+                value="You don't have any items yet. Complete quests to earn rewards!",
+                inline=False
+            )
+        else:
+            # Group items by type
+            items_by_type = {}
+            for item in items:
+                item_type = item.get("type", "Miscellaneous")
+                if item_type not in items_by_type:
+                    items_by_type[item_type] = []
+                items_by_type[item_type].append(item)
+            
+            # Display items by type
+            for item_type, type_items in list(items_by_type.items())[:3]:
+                item_list = "\n".join([f"• **{item['name']}** x{item.get('quantity', 1)}" for item in type_items[:5]])
+                if len(type_items) > 5:
+                    item_list += f"\n*...and {len(type_items) - 5} more {item_type}*"
+                    
+                embed.add_field(
+                    name=f"📦 {item_type} ({len(type_items)})",
+                    value=item_list,
+                    inline=True
+                )
+        
+        # Add navigation guide
+        embed.add_field(
+            name="📋 Navigation",
+            value=(
+                "👤 Profile\n"
+                "🧙‍♂️ Class Info\n"
+                "🎯 Skills\n"
+                "🎒 Inventory"
+            ),
+            inline=False
+        )
+        
+        return embed
 
 async def setup(bot):
     await bot.add_cog(Quests(bot))

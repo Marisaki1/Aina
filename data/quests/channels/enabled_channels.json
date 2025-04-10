@@ -1,15 +1,57 @@
 {
-    "776421259935875082": [
-        "1357954679010492416",
-        "776421259935875085",
-        "776433231992979506"
-    ],
-    "1350375791418019903": [
-        "1350376970227028120"
-    ],
-    "591461133601341461": [
-        "591461133601341463",
-        "650568208692019222",
-        "650568299352162335"
-    ]
+    "776421259935875082": {
+        "1357954679010492416": {
+            "enabled": true,
+            "encounter_time": "05:00",
+            "encounter_seconds": 300,
+            "cooldown_time": "10:00",
+            "cooldown_seconds": 600
+        },
+        "776421259935875085": {
+            "enabled": true,
+            "encounter_time": "05:00",
+            "encounter_seconds": 300,
+            "cooldown_time": "10:00",
+            "cooldown_seconds": 600
+        },
+        "776433231992979506": {
+            "enabled": true,
+            "encounter_time": "05:00",
+            "encounter_seconds": 300,
+            "cooldown_time": "10:00",
+            "cooldown_seconds": 600
+        }
+    },
+    "1350375791418019903": {
+        "1350376970227028120": {
+            "enabled": true,
+            "encounter_time": "05:00",
+            "encounter_seconds": 300,
+            "cooldown_time": "10:00",
+            "cooldown_seconds": 600
+        }
+    },
+    "591461133601341461": {
+        "591461133601341463": {
+            "enabled": true,
+            "encounter_time": "05:00",
+            "encounter_seconds": 300,
+            "cooldown_time": "10:00",
+            "cooldown_seconds": 600
+        },
+        "650568208692019222": {
+            "enabled": true,
+            "encounter_time": "05:00",
+            "encounter_seconds": 300,
+            "cooldown_time": "10:00",
+            "cooldown_seconds": 600
+        },
+        "650568299352162335": {
+            "enabled": true,
+            "encounter_time": "00:15",
+            "encounter_seconds": 15,
+            "cooldown_time": "10:00",
+            "cooldown_seconds": 600
+        }
+    }
 }
