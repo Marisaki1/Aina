@@ -37,7 +37,18 @@ class PlayerManager:
             "achievements": [],
             "location": "Rivermeet",  # Add default location
             "created_at": timestamp,
-            "last_active": timestamp
+            "last_active": timestamp,
+            # New fields for class system
+            "ability_scores": {
+                "strength": 10,
+                "dexterity": 10,
+                "constitution": 10,
+                "intelligence": 10,
+                "wisdom": 10,
+                "charisma": 10
+            },
+            "skills": {},
+            "active_class": None  # Currently active class for the player
         }
         
         # Save to file
@@ -117,4 +128,53 @@ class PlayerManager:
             "name": achievement,
             "date": datetime.now().isoformat()
         })
+        return self.save_player_data(user_id, player)
+        
+    def set_active_class(self, user_id, class_name):
+        """Set the active class for a player"""
+        player = self.get_player_data(user_id) or self.create_player(user_id, str(user_id))
+        player["active_class"] = class_name
+        player["last_active"] = datetime.now().isoformat()
+        return self.save_player_data(user_id, player)
+        
+    def get_active_class(self, user_id):
+        """Get a player's active class name"""
+        player = self.get_player_data(user_id)
+        if not player:
+            return None
+        return player.get("active_class")
+        
+    def add_ability_score(self, user_id, ability, amount=1):
+        """Add points to a player's ability score"""
+        player = self.get_player_data(user_id) or self.create_player(user_id, str(user_id))
+        
+        if "ability_scores" not in player:
+            player["ability_scores"] = {
+                "strength": 10,
+                "dexterity": 10,
+                "constitution": 10,
+                "intelligence": 10,
+                "wisdom": 10,
+                "charisma": 10
+            }
+        
+        # Add points to the ability score
+        current = player["ability_scores"].get(ability, 10)
+        player["ability_scores"][ability] = current + amount
+        
+        player["last_active"] = datetime.now().isoformat()
+        return self.save_player_data(user_id, player)
+    
+    def add_skill_point(self, user_id, skill, amount=1):
+        """Add points to a player's skill"""
+        player = self.get_player_data(user_id) or self.create_player(user_id, str(user_id))
+        
+        if "skills" not in player:
+            player["skills"] = {}
+        
+        # Add points to the skill
+        current = player["skills"].get(skill, 0)
+        player["skills"][skill] = current + amount
+        
+        player["last_active"] = datetime.now().isoformat()
         return self.save_player_data(user_id, player)

@@ -47,10 +47,24 @@ class Help(commands.Cog):
                 "`!quests profile` - Player statistics\n"
                 "`!quests records` - View quest history\n"
                 "`!quests ongoing` - Show active quests\n"
+                "`!quests new` - Create a new character class\n"
                 "`!quests enable` - Enable random encounters (Admin)\n"
                 "`!quests disable` - Disable random encounters (Admin)"
             )
+            
             embed.add_field(name="⚔️ Quest System Commands", value=quest_commands, inline=False)
+
+            class_commands = (
+                "`!class` - View your character classes\n"
+                "`!class info <class>` - View detailed class info\n"
+                "`!class appearance <class>` - Set class appearance\n"
+                "`!class reset <class>` - Reset skill & ability distribution\n"
+                "`!quests new` - Create a new character class"
+            )
+            embed.add_field(name="🧙‍♂️ Class Commands", value=class_commands, inline=False)
+            
+            help_commands = "`!help [command]` - Show detailed help for a specific command"
+            embed.add_field(name="❓ Help Commands", value=help_commands, inline=False)
             
             help_commands = "`!help [command]` - Show detailed help for a specific command"
             embed.add_field(name="❓ Help Commands", value=help_commands, inline=False)
@@ -428,7 +442,7 @@ class Help(commands.Cog):
         elif command == "quests disable":
             embed = discord.Embed(
                 title="!quests disable Command Help",
-                description="Disable random encounters (Admin only)",
+                description="Disable random encounters in this channel (Admin only)",
                 color=discord.Color.red()
             )
             usage = (
@@ -440,18 +454,47 @@ class Help(commands.Cog):
             )
             embed.add_field(name="Usage", value=usage, inline=False)
             await ctx.send(embed=embed)
-
-        else:
+            
+        elif command == "quests new" or command == "new":
             embed = discord.Embed(
-                title="Command Not Found",
-                description=f"Sorry, I couldn't find help for `{command}`",
-                color=discord.Color.red()
+                title="!quests new Command Help",
+                description="Create a new character class",
+                color=discord.Color.blue()
             )
-            embed.add_field(
-                name="Need help?", 
-                value="Type `!help` to see all available commands",
-                inline=False
+            usage = (
+                "**Format:** `!quests new`\n\n"
+                "This command starts the class selection process, allowing you to choose from 13 different character classes. Each class has unique abilities and skills.\n\n"
+                "After selecting a class, you can customize it with:\n"
+                "- `!class appearance <class>` - Set your character's appearance\n"
+                "- `!class info <class>` - View detailed info about your class\n"
+                "- `!class reset <class>` - Reset your skills and abilities (costs gold)"
             )
+            embed.add_field(name="Usage", value=usage, inline=False)
+            await ctx.send(embed=embed)
+            
+        elif command == "class":
+            embed = discord.Embed(
+                title="!class Command Help",
+                description="View and manage your character classes",
+                color=discord.Color.blue()
+            )
+            subcommands = (
+                "**Basic Command:**\n"
+                "`!class` - View all your character classes\n\n"
+                "**Subcommands:**\n"
+                "`!class info [class]` - View detailed information about a specific class\n"
+                "`!class appearance <class>` - Set or change your class appearance with an image\n"
+                "`!class reset <class>` - Reset skill and ability distribution (costs gold)"
+            )
+            embed.add_field(name="Commands", value=subcommands, inline=False)
+            
+            examples = (
+                "`!class` - See a summary of all your classes\n"
+                "`!class info Fighter` - View detailed info about your Fighter class\n"
+                "`!class appearance Wizard` - Upload an image for your Wizard\n"
+                "`!class reset Rogue` - Reset your Rogue's skills and abilities"
+            )
+            embed.add_field(name="Examples", value=examples, inline=False)
             await ctx.send(embed=embed)
 
 async def setup(bot):
