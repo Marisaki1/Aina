@@ -37,6 +37,8 @@ async def load_cogs():
         
         # Load events cog
         await bot.load_extension("cogs.events")
+        # Load dungeons cog
+        await bot.load_extension("cogs.dungeons.dungeons")
         
         print("✅ All cogs loaded successfully!")
     except Exception as e:

@@ -2,7 +2,7 @@
     "Artificer": {
         "name": "Artificer",
         "level": 2,
-        "xp": 0,
+        "xp": 100,
         "ability_scores": {
             "strength": 10,
             "dexterity": 11,
