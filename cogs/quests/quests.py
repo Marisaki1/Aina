@@ -1,3 +1,4 @@
+import random
 import re
 import discord
 from discord.ext import commands
@@ -9,6 +10,57 @@ from datetime import datetime, timedelta
 from .quest_manager import QuestManager
 from .player_manager import PlayerManager
 from .utils import create_embed, format_duration, DIFFICULTY_COLORS, DIFFICULTY_EMOJIS
+
+XP_CONFIG = {
+    # Random encounter rewards by difficulty
+    "encounter": {
+        "easy": {
+            "min_xp": 50,
+            "max_xp": 100,
+            "min_gold": 5,
+            "max_gold": 20
+        },
+        "normal": {
+            "min_xp": 100,
+            "max_xp": 200,
+            "min_gold": 10,
+            "max_gold": 40
+        },
+        "hard": {
+            "min_xp": 200,
+            "max_xp": 300,
+            "min_gold": 20,
+            "max_gold": 60
+        },
+        "expert": {
+            "min_xp": 300,
+            "max_xp": 500,
+            "min_gold": 30,
+            "max_gold": 80
+        }
+    },
+    
+    # XP multipliers for different activities
+    "multipliers": {
+        "success": 1.0,    # Normal reward for success
+        "critical": 1.5,   # Bonus for exceptional success
+        "group": 0.8,      # Multiplier when in a group (per person)
+        "failure": 0.25    # Consolation XP for trying
+    }
+}
+
+# Then modify the reward generation code to use these values:
+
+# Generate random rewards based on difficulty
+difficulty = "normal"  # You can set this based on the encounter
+reward_config = XP_CONFIG["encounter"].get(difficulty, XP_CONFIG["encounter"]["normal"])
+
+xp = random.randint(reward_config["min_xp"], reward_config["max_xp"])
+gold = random.randint(reward_config["min_gold"], reward_config["max_gold"])
+
+# Apply success multiplier
+xp = int(xp * XP_CONFIG["multipliers"]["success"])
+gold = int(gold * XP_CONFIG["multipliers"]["success"])
 
 class Quests(commands.Cog):
     def __init__(self, bot):
@@ -690,10 +742,77 @@ class Quests(commands.Cog):
         
         await ctx.send(embed=embed)
     
-    @quests.command(name="player", aliases=["profile", "info"])
+    @quests.command(name="player", aliases=["profile", "info", "me"])
     async def player_info(self, ctx, user: discord.Member = None):
-        """Display player stats and information"""
+        """Display player stats and information with interactive navigation"""
+        # If viewing someone else's profile or a specific user is mentioned, show non-interactive version
+        if user and user.id != ctx.author.id:
+            await self._show_non_interactive_profile(ctx, user)
+            return
+        
+        # For your own profile, show interactive version with navigation
         target_user = user or ctx.author
+        
+        # Create initial embed with player info
+        embed = await self._create_player_info_embed(target_user)
+        
+        # Send the message
+        profile_message = await ctx.send(embed=embed)
+        
+        # Add navigation reactions
+        reactions = {
+            "👤": "profile",  # Profile
+            "🧙‍♂️": "class",   # Class Info
+            "🎯": "skills",   # Skills
+            "🎒": "inventory" # Inventory
+        }
+        
+        for emoji in reactions.keys():
+            await profile_message.add_reaction(emoji)
+        
+        def check(reaction, reactor):
+            return (reactor == ctx.author and 
+                    str(reaction.emoji) in reactions and 
+                    reaction.message.id == profile_message.id)
+        
+        # Wait for reactions
+        while True:
+            try:
+                reaction, reactor = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
+                
+                # Remove the user's reaction
+                try:
+                    await profile_message.remove_reaction(reaction.emoji, reactor)
+                except:
+                    pass  # Ignore if we can't remove it
+                
+                # Get the page type
+                page_type = reactions[str(reaction.emoji)]
+                
+                # Update the embed based on reaction
+                if page_type == "profile":
+                    embed = await self._create_player_info_embed(target_user)
+                elif page_type == "class":
+                    embed = await self._create_class_info_embed(target_user)
+                elif page_type == "skills":
+                    embed = await self._create_skills_embed(target_user)
+                elif page_type == "inventory":
+                    embed = await self._create_inventory_embed(target_user)
+                
+                # Update the message
+                await profile_message.edit(embed=embed)
+                
+            except asyncio.TimeoutError:
+                # After timeout, remove our reactions and stop listening
+                try:
+                    await profile_message.clear_reactions()
+                except:
+                    pass
+                break
+
+    # Helper method for non-interactive profile (when viewing someone else's profile)
+    async def _show_non_interactive_profile(self, ctx, target_user):
+        """Display non-interactive player profile for other users"""
         player_data = self.player_manager.get_player_data(target_user.id)
         
         if not player_data:
@@ -765,7 +884,6 @@ class Quests(commands.Cog):
             )
         
         await ctx.send(embed=embed)
-
     # Add this inside the Quests class in cogs/quests/quest.py, alongside other commands
 
     @quests.command(name="records", aliases=["history"])
@@ -1288,70 +1406,6 @@ class Quests(commands.Cog):
         self._save_enabled_channels(enabled_channels)
         
         return enabled
-
-    # Add this to the Quests class in quests.py
-
-    @quests.command(name="profile", aliases=["me"])
-    async def interactive_profile(self, ctx):
-        """Interactive profile with navigation reactions"""
-        user = ctx.author
-        
-        # Create initial embed with player info
-        embed = await self._create_player_info_embed(user)
-        
-        # Send the message
-        profile_message = await ctx.send(embed=embed)
-        
-        # Add navigation reactions
-        reactions = {
-            "👤": "profile",  # Profile
-            "🧙‍♂️": "class",   # Class Info
-            "🎯": "skills",   # Skills
-            "🎒": "inventory" # Inventory
-        }
-        
-        for emoji in reactions.keys():
-            await profile_message.add_reaction(emoji)
-        
-        def check(reaction, reactor):
-            return (reactor == user and 
-                    str(reaction.emoji) in reactions and 
-                    reaction.message.id == profile_message.id)
-        
-        # Wait for reactions
-        while True:
-            try:
-                reaction, reactor = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
-                
-                # Remove the user's reaction
-                try:
-                    await profile_message.remove_reaction(reaction.emoji, reactor)
-                except:
-                    pass  # Ignore if we can't remove it
-                
-                # Get the page type
-                page_type = reactions[str(reaction.emoji)]
-                
-                # Update the embed based on reaction
-                if page_type == "profile":
-                    embed = await self._create_player_info_embed(user)
-                elif page_type == "class":
-                    embed = await self._create_class_info_embed(user)
-                elif page_type == "skills":
-                    embed = await self._create_skills_embed(user)
-                elif page_type == "inventory":
-                    embed = await self._create_inventory_embed(user)
-                
-                # Update the message
-                await profile_message.edit(embed=embed)
-                
-            except asyncio.TimeoutError:
-                # After timeout, remove our reactions and stop listening
-                try:
-                    await profile_message.clear_reactions()
-                except:
-                    pass
-                break
 
     # Helper methods for creating the various embeds
     async def _create_player_info_embed(self, user):

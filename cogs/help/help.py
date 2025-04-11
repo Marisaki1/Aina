@@ -44,7 +44,7 @@ class Help(commands.Cog):
                 "`!quests complete` - Finish active quest\n"
                 "`!quests cancel` - Cancel active quest\n"
                 "`!quests inventory` - View your items\n"
-                "`!quests profile` - Player statistics\n"
+                "`!quests player` - Interactive player profile with navigation\n"
                 "`!quests records` - View quest history\n"
                 "`!quests ongoing` - Show active quests\n"
                 "`!quests new` - Create a new character class\n"
@@ -57,14 +57,12 @@ class Help(commands.Cog):
             class_commands = (
                 "`!class` - View your character classes\n"
                 "`!class info <class>` - View detailed class info\n"
+                "`!class skills <class>` - View all skills for a class\n"
                 "`!class appearance <class>` - Set class appearance\n"
                 "`!class reset <class>` - Reset skill & ability distribution\n"
                 "`!quests new` - Create a new character class"
             )
             embed.add_field(name="🧙‍♂️ Class Commands", value=class_commands, inline=False)
-            
-            help_commands = "`!help [command]` - Show detailed help for a specific command"
-            embed.add_field(name="❓ Help Commands", value=help_commands, inline=False)
             
             help_commands = "`!help [command]` - Show detailed help for a specific command"
             embed.add_field(name="❓ Help Commands", value=help_commands, inline=False)
@@ -349,23 +347,23 @@ class Help(commands.Cog):
             embed.add_field(name="Usage", value=usage, inline=False)
             await ctx.send(embed=embed)
 
-        elif command == "quests profile":
+        elif command == "quests profile" or command == "quests player" or command == "quests info" or command == "quests me":
             embed = discord.Embed(
-                title="!quests profile Command Help",
-                description="View your adventurer statistics",
+                title="!quests player Command Help",
+                description="View your adventurer profile with interactive navigation",
                 color=discord.Color.blue()
             )
             usage = (
-                "**Format:** `!quests profile [@user]`\n\n"
+                "**Format:** `!quests player [@user]` or `!quests profile` or `!quests me`\n\n"
                 "**Parameters:**\n"
                 "- `@user` - Optional user to view (defaults to you)\n\n"
-                "**Shows:**\n"
-                "- Quests completed\n"
-                "- Success rate\n"
-                "- Experience & achievements\n\n"
+                "**Features:**\n"
+                "- When viewing your own profile, you get interactive navigation buttons\n"
+                "- Use reactions to switch between Profile, Class Info, Skills, and Inventory\n"
+                "- When viewing another user's profile, you see a static view\n\n"
                 "**Examples:**\n"
-                "`!quests profile` - View your own stats\n"
-                "`!quests profile @Hero` - View Hero's stats"
+                "`!quests player` - View your interactive profile\n"
+                "`!quests player @Hero` - View Hero's profile (static)"
             )
             embed.add_field(name="Usage", value=usage, inline=False)
             await ctx.send(embed=embed)
@@ -495,6 +493,102 @@ class Help(commands.Cog):
                 "`!class reset Rogue` - Reset your Rogue's skills and abilities"
             )
             embed.add_field(name="Examples", value=examples, inline=False)
+            await ctx.send(embed=embed)
+
+        elif command == "class skills":
+            embed = discord.Embed(
+                title="!class skills Command Help",
+                description="View all skills for your character class",
+                color=discord.Color.blue()
+            )
+            usage = (
+                "**Format:** `!class skills [class_name]`\n\n"
+                "**Parameters:**\n"
+                "- `class_name` - Optional class to view (defaults to your first class)\n\n"
+                "**Shows:**\n"
+                "- All skills organized by ability type (STR, DEX, INT, WIS, CHA)\n"
+                "- Skill points and total bonuses for each skill\n"
+                "- Trained skills are highlighted in bold\n\n"
+                "**Examples:**\n"
+                "`!class skills` - View skills for your first/only class\n"
+                "`!class skills Wizard` - View skills for your Wizard class"
+            )
+            embed.add_field(name="Usage", value=usage, inline=False)
+            await ctx.send(embed=embed)
+
+        elif command == "class increase":
+            embed = discord.Embed(
+                title="!class increase Command Help",
+                description="Add points to your abilities or skills",
+                color=discord.Color.blue()
+            )
+            usage = (
+                "**Format:** `!class increase <type> [class_name]`\n\n"
+                "**Types:**\n"
+                "- `ability` - Increase ability scores (STR, DEX, CON, INT, WIS, CHA)\n"
+                "- `skill` - Increase skill proficiencies\n\n"
+                "**Parameters:**\n"
+                "- `class_name` - Optional class to improve (defaults to your first class)\n\n"
+                "**Notes:**\n"
+                "- Ability points are gained every 4 levels\n"
+                "- Skill points are gained every level (based on INT)\n"
+                "- Uses interactive emoji reactions to allocate points\n\n"
+                "**Examples:**\n"
+                "`!class increase ability` - Add points to ability scores\n"
+                "`!class increase skill Wizard` - Add points to Wizard skills"
+            )
+            embed.add_field(name="Usage", value=usage, inline=False)
+            await ctx.send(embed=embed)
+
+        elif command == "class increase ability":
+            embed = discord.Embed(
+                title="!class increase ability Command Help",
+                description="🏆 Add points to your character's ability scores",
+                color=discord.Color.blue()
+            )
+            usage = (
+                "**Format:** `!class increase ability [class_name]`\n\n"
+                "**How it works:**\n"
+                "- Interactive interface with emoji reactions\n"
+                "- Each character gets 1 ability point every 4 levels\n"
+                "- Abilities can be increased to a maximum of 20\n"
+                "- Higher ability scores improve related skills\n\n"
+                "**Abilities:**\n"
+                "💪 **Strength**: Physical power and melee attacks\n"
+                "🏃 **Dexterity**: Agility, reflexes, and stealth\n"
+                "❤️ **Constitution**: Health and stamina (affects HP)\n"
+                "🧠 **Intelligence**: Knowledge and reasoning (affects MP)\n"
+                "🦉 **Wisdom**: Perception and insight (affects MP)\n"
+                "✨ **Charisma**: Social influence and magic (affects MP)\n\n"
+                "**Examples:**\n"
+                "`!class increase ability` - Add points to your first class\n"
+                "`!class increase ability Rogue` - Improve your Rogue's abilities"
+            )
+            embed.add_field(name="Usage", value=usage, inline=False)
+            await ctx.send(embed=embed)
+
+        elif command == "class increase skill":
+            embed = discord.Embed(
+                title="!class increase skill Command Help",
+                description="🎯 Add points to your character's skills",
+                color=discord.Color.blue()
+            )
+            usage = (
+                "**Format:** `!class increase skill [class_name]`\n\n"
+                "**How it works:**\n"
+                "- Interactive interface with emoji reactions\n"
+                "- Characters get skill points each level (1 + INT modifier)\n"
+                "- Skills are linked to ability scores (shown in parentheses)\n"
+                "- Higher skill points improve your chance at success\n\n"
+                "**Skills are organized in pages:**\n"
+                "- Use number reactions to increase a skill\n"
+                "- Navigate between pages with ⬅️ and ➡️\n"
+                "- Cancel anytime with ❌\n\n"
+                "**Examples:**\n"
+                "`!class increase skill` - Add points to your first class's skills\n"
+                "`!class increase skill Wizard` - Improve your Wizard's skills"
+            )
+            embed.add_field(name="Usage", value=usage, inline=False)
             await ctx.send(embed=embed)
 
 async def setup(bot):

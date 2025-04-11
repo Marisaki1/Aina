@@ -328,6 +328,10 @@ class PlayerClassHandler:
         if not new_class:
             return False
             
+        # Initialize point tracking
+        new_class["used_ability_points"] = 0
+        new_class["used_skill_points"] = 0
+            
         # Add the new class to the player's classes
         player_classes[class_name] = new_class
         
@@ -370,30 +374,121 @@ class PlayerClassHandler:
         # Check for level up
         xp_needed = self.class_manager.get_xp_for_next_level(current_level)
         level_up = False
+        notification = ""
         
         if character_class["xp"] >= xp_needed:
-            # Level up
-            character_class = self.class_manager.level_up_character_class(character_class)
-            level_up = True
+            # Level up with the enhanced method
+            level_up_result = self.level_up_character_class(user_id, class_name)
+            level_up = level_up_result.get("success", False)
+            
+            if level_up:
+                notification = level_up_result.get("notification", "")
+                # The class data was already updated and saved in level_up_character_class
+                character_class = player_classes[class_name]  # Get fresh data
+        else:
+            # Save the updated class
+            player_classes[class_name] = character_class
+            self._save_player_classes(user_id, player_classes)
         
-        # Update the class
-        player_classes[class_name] = character_class
+        # Return results
+        result = {
+            "success": True,
+            "level_up": level_up,
+            "new_level": character_class["level"],
+            "xp": character_class["xp"],
+            "xp_needed": self.class_manager.get_xp_for_next_level(character_class["level"]),
+            "notification": notification
+        }
         
-        # Save the updated classes
-        if self._save_player_classes(user_id, player_classes):
-            result = {
+        return result
+    
+    def level_up_character_class(self, user_id, class_name):
+        """Level up a character class and track available points"""
+        player_classes = self.get_player_classes(user_id)
+        
+        if not player_classes or class_name not in player_classes:
+            return None
+        
+        class_data = player_classes[class_name]
+        
+        # Get current level
+        current_level = class_data.get("level", 1)
+        new_level = current_level + 1
+        
+        # Update level
+        class_data["level"] = new_level
+        class_data["xp"] = 0  # Reset XP for new level
+        
+        # Check for ability point gain (every 4 levels)
+        if new_level % 4 == 0:
+            # Show a message about gaining an ability point
+            notification = f"🎉 **Level Up!** Your {class_name} has reached level {new_level} and gained an ability point!\nUse `!class increase ability {class_name}` to spend it."
+        else:
+            notification = f"🎉 **Level Up!** Your {class_name} has reached level {new_level}!"
+        
+        # Calculate skill points gain
+        # Default: INT modifier + 1 (minimum 1)
+        ability_scores = class_data.get("ability_scores", {})
+        intelligence = ability_scores.get("intelligence", 10)
+        int_modifier = max(1, (intelligence - 10) // 2)  # Min of 1
+        skill_points_gained = 1 + int_modifier
+        
+        # Add notification about skill points if they're granted
+        if skill_points_gained > 0:
+            notification += f"\nYou gained {skill_points_gained} skill points! Use `!class increase skill {class_name}` to spend them."
+        
+        # Save the updated class
+        player_classes[class_name] = class_data
+        success = self._save_player_classes(user_id, player_classes)
+        
+        if success:
+            return {
                 "success": True,
-                "level_up": level_up,
-                "new_level": character_class["level"],
-                "xp": character_class["xp"],
-                "xp_needed": self.class_manager.get_xp_for_next_level(character_class["level"])
+                "new_level": new_level,
+                "notification": notification,
+                "ability_point_gained": new_level % 4 == 0,
+                "skill_points_gained": skill_points_gained
             }
         else:
-            result = {
+            return {
                 "success": False
             }
-            
-        return result
+    
+    def get_available_ability_points(self, user_id, class_name):
+        """Calculate available ability points for a character class"""
+        player_classes = self.get_player_classes(user_id)
+        
+        if not player_classes or class_name not in player_classes:
+            return 0
+        
+        class_data = player_classes[class_name]
+        
+        # Calculate points: 1 per 4 levels
+        level = class_data.get("level", 1)
+        used_ability_points = class_data.get("used_ability_points", 0)
+        total_ability_points = level // 4
+        
+        return max(0, total_ability_points - used_ability_points)
+    
+    def get_available_skill_points(self, user_id, class_name):
+        """Calculate available skill points for a character class"""
+        player_classes = self.get_player_classes(user_id)
+        
+        if not player_classes or class_name not in player_classes:
+            return 0
+        
+        class_data = player_classes[class_name]
+        
+        # Calculate points: 1 + INT modifier per level
+        level = class_data.get("level", 1)
+        ability_scores = class_data.get("ability_scores", {})
+        intelligence = ability_scores.get("intelligence", 10)
+        int_modifier = max(1, (intelligence - 10) // 2)  # Min of 1
+        
+        used_skill_points = class_data.get("used_skill_points", 0)
+        total_skill_points = level + (level * int_modifier)
+        
+        return max(0, total_skill_points - used_skill_points)
     
     def add_skill_point(self, user_id: int, class_name: str, skill_name: str) -> bool:
         """Add a skill point to a player's class skill"""
@@ -406,11 +501,20 @@ class PlayerClassHandler:
             
         character_class = player_classes[class_name]
         
+        # Check if player has available skill points
+        available_points = self.get_available_skill_points(user_id, class_name)
+        if available_points <= 0:
+            return False
+        
         # Get skills
         skills = character_class.get("skills", {})
         
         # Add the skill point
         skills[skill_name] = skills.get(skill_name, 0) + 1
+        
+        # Update used skill points
+        used_points = character_class.get("used_skill_points", 0)
+        character_class["used_skill_points"] = used_points + 1
         
         # Update skills
         character_class["skills"] = skills
@@ -432,11 +536,25 @@ class PlayerClassHandler:
             
         character_class = player_classes[class_name]
         
+        # Check if player has available ability points
+        available_points = self.get_available_ability_points(user_id, class_name)
+        if available_points <= 0:
+            return False
+        
         # Get ability scores
         ability_scores = character_class.get("ability_scores", {})
         
+        # Check if ability score is already at max (20)
+        current_score = ability_scores.get(ability.value, 10)
+        if current_score >= 20:
+            return False
+        
         # Add the ability point
-        ability_scores[ability.value] = ability_scores.get(ability.value, 10) + 1
+        ability_scores[ability.value] = current_score + 1
+        
+        # Update used ability points
+        used_points = character_class.get("used_ability_points", 0)
+        character_class["used_ability_points"] = used_points + 1
         
         # Update ability scores
         character_class["ability_scores"] = ability_scores
@@ -467,6 +585,10 @@ class PlayerClassHandler:
         # Restore level and appearance
         new_class["level"] = current_level
         new_class["appearance_url"] = appearance_url
+        
+        # Reset point tracking
+        new_class["used_ability_points"] = 0
+        new_class["used_skill_points"] = 0
         
         # Update the class
         player_classes[class_name] = new_class

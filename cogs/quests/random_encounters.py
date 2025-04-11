@@ -12,6 +12,18 @@ from .player_manager import PlayerManager
 from .npc_problems import NPCProblemManager
 from .player_classes import PlayerClassHandler
 
+
+LOCATION_MULTIPLIERS = {
+    "Rivermeet": 1.0,      # Starting town
+    "Shadowfen": 1.25,     # Placeholder for future location
+    "Ironhold": 1.5,       # Placeholder for future location
+    "Crystalpeak": 1.75,   # Placeholder for future location
+    "Abyssdepth": 2.0,     # Placeholder for future location
+    "Celestia": 2.5        # Placeholder for future location
+}
+# Default multiplier for unknown locations
+DEFAULT_LOCATION_MULTIPLIER = 1.0
+
 class NewRandomEncounters(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -462,12 +474,27 @@ class NewRandomEncounters(commands.Cog):
             
             # If success, add rewards to player
             if success:
-                # Generate random rewards
-                xp = random.randint(100, 300)
-                gold = random.randint(10, 50)
-                
-                # Add rewards to player
+                # Get player location
                 player_data = self.player_manager.get_player_data(user.id)
+                location = player_data.get("location", "Rivermeet") if player_data else "Rivermeet"
+                
+                # Get location multiplier
+                location_multiplier = LOCATION_MULTIPLIERS.get(location, DEFAULT_LOCATION_MULTIPLIER)
+                
+                # Calculate rewards based on skill DC and location
+                # For XP: (skill_dc * 50 + 50) * location_multiplier
+                # For Gold: (skill_dc * 10 + 10) * location_multiplier
+                skill_dc = selected_choice.get("skill_dc", 10)
+                
+                # Calculate base rewards
+                base_xp = skill_dc * 50 + 50
+                base_gold = skill_dc * 10 + 10
+                
+                # Apply location multiplier
+                xp = int(base_xp * location_multiplier)
+                gold = int(base_gold * location_multiplier)
+                
+                # Add rewards to player profile
                 if player_data:
                     player_data["xp"] = player_data.get("xp", 0) + xp
                     player_data["gold"] = player_data.get("gold", 0) + gold
@@ -476,20 +503,54 @@ class NewRandomEncounters(commands.Cog):
                     old_level = player_data.get("level", 1)
                     new_level = max(1, 1 + int((player_data["xp"] / 100) ** 0.5))
                     
+                    player_level_up = False
                     if new_level > old_level:
                         player_data["level"] = new_level
-                        result_embed.add_field(
-                            name="🌟 Level Up!",
-                            value=f"You've reached level {new_level}!",
-                            inline=False
-                        )
+                        player_level_up = True
                     
                     self.player_manager.save_player_data(user.id, player_data)
+                    
+                    # Also add XP to the player's class
+                    player_class_handler = self.player_class_handler
+                    player_classes = player_class_handler.get_player_classes(user.id)
+                    
+                    class_level_up = False
+                    class_name = None
+                    
+                    # If player has classes, add XP to their first class (or active class if set)
+                    if player_classes:
+                        # Get the active class or first class
+                        active_class = self.player_manager.get_active_class(user.id)
+                        if active_class and active_class in player_classes:
+                            class_name = active_class
+                        else:
+                            class_name = list(player_classes.keys())[0]
+                        
+                        # Add XP to the class
+                        xp_result = player_class_handler.add_xp(user.id, class_name, xp)
+                        class_level_up = xp_result.get("level_up", False)
+                    
+                    # Add level up information
+                    if player_level_up or class_level_up:
+                        level_up_text = ""
+                        if player_level_up:
+                            level_up_text += f"Your character reached level {new_level}!\n"
+                        if class_level_up and class_name:
+                            level_up_text += f"Your {class_name} class leveled up!"
+                            
+                        result_embed.add_field(
+                            name="🌟 Level Up!",
+                            value=level_up_text,
+                            inline=False
+                        )
                 
-                # Add rewards info to embed
+                # Add rewards info to embed with location multiplier
                 result_embed.add_field(
                     name="💰 Rewards",
-                    value=f"**+{xp} XP**\n**+{gold} Gold**",
+                    value=(
+                        f"**+{xp} XP** (DC {skill_dc} × {location_multiplier}x)\n"
+                        f"**+{gold} Gold** (DC {skill_dc} × {location_multiplier}x)"
+                    ),
                     inline=False
                 )
             

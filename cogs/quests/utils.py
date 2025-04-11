@@ -16,7 +16,7 @@ DIFFICULTY_EMOJIS = {
 }
 
 def create_embed(**kwargs):
-    return discord.Embed(**kwargs).set_footer(text="Quest System v0.2")
+    return discord.Embed(**kwargs).set_footer(text="Quest System v1.1")
 
 def format_duration(duration):
     hours, minutes = map(int, duration.split(':'))
