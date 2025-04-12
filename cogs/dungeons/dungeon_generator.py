@@ -169,9 +169,16 @@ class DungeonGenerator:
         # Mark the start and end as paths
         current = start
         path = [start]
+        visited = set()  # Keep track of visited positions to avoid infinite loops
+        visited.add(start)
+        
+        # Maximum iterations to prevent infinite loops
+        max_iterations = grid.shape[0] * grid.shape[1] * 2
+        iterations = 0
         
         # Continue until we reach the end
-        while current != end:
+        while current != end and iterations < max_iterations:
+            iterations += 1
             y, x = current
             
             # Get possible neighbor cells (up, down, left, right)
@@ -185,8 +192,8 @@ class DungeonGenerator:
             for ny, nx in neighbors:
                 # Check bounds
                 if 0 < ny < grid.shape[0]-1 and 0 < nx < grid.shape[1]-1:
-                    # Check if cell is not already part of path
-                    if (ny, nx) not in path:
+                    # Check if cell is not already part of path and not visited
+                    if (ny, nx) not in visited:
                         valid_neighbors.append((ny, nx))
             
             if valid_neighbors:
@@ -202,13 +209,38 @@ class DungeonGenerator:
                 # Mark as path
                 grid[next_pos[0], next_pos[1]] = self.cell_types["PATH"]
                 path.append(next_pos)
+                visited.add(next_pos)  # Mark as visited
                 current = next_pos
-            else:
+            elif path:
                 # If we're stuck, backtrack
                 path.pop()
                 if not path:
                     break  # Emergency break if we can't find a path
                 current = path[-1]
+            else:
+                # If we've emptied the path completely and still can't proceed, stop
+                break
+                
+        # If we couldn't reach the end, create a direct path
+        if current != end:
+            # Get a direct path by interpolating between the furthest point reached and end
+            y, x = current
+            end_y, end_x = end
+            
+            # Create a straight path to end
+            steps_y = abs(end_y - y)
+            steps_x = abs(end_x - x)
+            
+            # Move vertically first
+            for step in range(1, steps_y + 1):
+                ny = y + (1 if end_y > y else -1) * step
+                grid[ny, x] = self.cell_types["PATH"]
+            
+            # Then move horizontally to reach the end
+            new_y = end_y
+            for step in range(1, steps_x + 1):
+                nx = x + (1 if end_x > x else -1) * step
+                grid[new_y, nx] = self.cell_types["PATH"]
     
     def _add_branches(self, grid: np.ndarray, branch_factor: float, dead_ends: int) -> None:
         """
