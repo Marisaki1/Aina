@@ -32,7 +32,7 @@ async def load_cogs():
         
         # Load quest cogs
         await bot.load_extension("cogs.quests.quests")
-        await bot.load_extension("cogs.quests.class_commands")  # Added this line to load the class commands
+        await bot.load_extension("cogs.quests.class_commands") 
         await bot.load_extension("cogs.quests.random_encounters")
         
         # Load events cog
