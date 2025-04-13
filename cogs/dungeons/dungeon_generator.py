@@ -96,11 +96,16 @@ class DungeonGenerator:
         Returns:
             Dict containing the floor data
         """
-        # Initialize grid with walls
+        # Initialize grid with walls - EVERYTHING starts as a wall
         grid = np.zeros((height, width), dtype=int)
         
-        # Generate start and end positions
-        start_pos = (random.randint(1, height-2), random.randint(1, width-2))
+        # Fill the entire grid with walls
+        for y in range(height):
+            for x in range(width):
+                grid[y, x] = self.cell_types["WALL"]
+        
+        # Generate start and end positions (not too close to edges)
+        start_pos = (random.randint(2, height-3), random.randint(2, width-3))
         
         # For the final floor, place end on opposite side of the grid from start
         if is_final_floor:
@@ -110,8 +115,8 @@ class DungeonGenerator:
             potential_end_spots = []
             min_distance = min(width, height) // 2  # At least half the grid away
             
-            for y in range(1, height-1):
-                for x in range(1, width-1):
+            for y in range(2, height-2):
+                for x in range(2, width-2):
                     dist = abs(start_pos[0] - y) + abs(start_pos[1] - x)
                     if dist >= min_distance:
                         potential_end_spots.append((y, x))
@@ -120,17 +125,17 @@ class DungeonGenerator:
                 end_pos = random.choice(potential_end_spots)
             else:
                 end_pos = (
-                    (start_pos[0] + height // 2) % (height - 2) + 1,
-                    (start_pos[1] + width // 2) % (width - 2) + 1
+                    (start_pos[0] + height // 2) % (height - 4) + 2,
+                    (start_pos[1] + width // 2) % (width - 4) + 2
                 )
         
-        # Generate main path from start to end
-        self._generate_path(grid, start_pos, end_pos)
+        # Create a single-width path from start to end
+        self._generate_single_width_path(grid, start_pos, end_pos)
         
-        # Add branching paths based on complexity
-        self._add_branches(grid, branch_factor, dead_ends)
+        # Add branch points
+        self._add_single_width_branches(grid, branch_factor, dead_ends)
         
-        # Place the start and end points in the grid
+        # Mark start and end points
         grid[start_pos[0], start_pos[1]] = self.cell_types["START"]
         
         if is_final_floor:
@@ -138,7 +143,7 @@ class DungeonGenerator:
         else:
             grid[end_pos[0], end_pos[1]] = self.cell_types["STAIRS_UP"]
         
-        # Add elements to the grid
+        # Add elements to the grid (chests, traps, enemies)
         self._add_elements(grid, trap_chance, is_final_floor)
         
         # Create floor data structure
@@ -156,148 +161,191 @@ class DungeonGenerator:
         }
         
         return floor
-    
-    def _generate_path(self, grid: np.ndarray, start: Tuple[int, int], end: Tuple[int, int]) -> None:
+
+    def _generate_single_width_path(self, grid: np.ndarray, start: Tuple[int, int], end: Tuple[int, int]) -> None:
         """
-        Generate a path from start to end using a modified A* algorithm
+        Generate a path from start to end that is exactly 1 cell wide
         
         Args:
             grid: The grid array to modify
             start: Starting position (y, x)
             end: Ending position (y, x)
         """
-        # Mark the start and end as paths
-        current = start
-        path = [start]
-        visited = set()  # Keep track of visited positions to avoid infinite loops
-        visited.add(start)
+        # Set start and potentially visited positions
+        y, x = start
+        grid[y, x] = self.cell_types["PATH"]
         
-        # Maximum iterations to prevent infinite loops
-        max_iterations = grid.shape[0] * grid.shape[1] * 2
-        iterations = 0
+        # Keep track of cells we've tried
+        visited = set([start])
         
-        # Continue until we reach the end
-        while current != end and iterations < max_iterations:
-            iterations += 1
-            y, x = current
+        # Simple A* implementation
+        queue = [(start, [])]  # (position, path)
+        
+        while queue:
+            (y, x), path = queue.pop(0)
             
-            # Get possible neighbor cells (up, down, left, right)
-            neighbors = [
-                (y-1, x), (y+1, x), (y, x-1), (y, x+1)
-            ]
+            # Check if we reached the end
+            if (y, x) == end:
+                # Mark the final path
+                for py, px in path:
+                    grid[py, px] = self.cell_types["PATH"]
+                return
             
-            # Filter valid neighbors 
-            valid_neighbors = []
+            # Try each direction
+            directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+            random.shuffle(directions)  # Randomize directions for more interesting paths
             
-            for ny, nx in neighbors:
-                # Check bounds
-                if 0 < ny < grid.shape[0]-1 and 0 < nx < grid.shape[1]-1:
-                    # Check if cell is not already part of path and not visited
-                    if (ny, nx) not in visited:
-                        valid_neighbors.append((ny, nx))
-            
-            if valid_neighbors:
-                # Prioritize neighbors that move closer to the end
-                valid_neighbors.sort(key=lambda pos: abs(pos[0] - end[0]) + abs(pos[1] - end[1]))
+            for dy, dx in directions:
+                ny, nx = y + dy, x + dx
                 
-                # Add some randomness to make the path less straight
-                if len(valid_neighbors) > 1 and random.random() < 0.3:
-                    next_pos = valid_neighbors[1]  # Take second best option sometimes
-                else:
-                    next_pos = valid_neighbors[0]  # Take best option
-                
-                # Mark as path
-                grid[next_pos[0], next_pos[1]] = self.cell_types["PATH"]
-                path.append(next_pos)
-                visited.add(next_pos)  # Mark as visited
-                current = next_pos
-            elif path:
-                # If we're stuck, backtrack
-                path.pop()
-                if not path:
-                    break  # Emergency break if we can't find a path
-                current = path[-1]
-            else:
-                # If we've emptied the path completely and still can't proceed, stop
-                break
-                
-        # If we couldn't reach the end, create a direct path
-        if current != end:
-            # Get a direct path by interpolating between the furthest point reached and end
-            y, x = current
-            end_y, end_x = end
-            
-            # Create a straight path to end
-            steps_y = abs(end_y - y)
-            steps_x = abs(end_x - x)
-            
-            # Move vertically first
-            for step in range(1, steps_y + 1):
-                ny = y + (1 if end_y > y else -1) * step
-                grid[ny, x] = self.cell_types["PATH"]
-            
-            # Then move horizontally to reach the end
-            new_y = end_y
-            for step in range(1, steps_x + 1):
-                nx = x + (1 if end_x > x else -1) * step
-                grid[new_y, nx] = self.cell_types["PATH"]
-    
-    def _add_branches(self, grid: np.ndarray, branch_factor: float, dead_ends: int) -> None:
+                # Check if within bounds and not visited
+                if (0 < ny < grid.shape[0]-1 and 0 < nx < grid.shape[1]-1 and
+                    (ny, nx) not in visited):
+                    
+                    # Mark as visited
+                    visited.add((ny, nx))
+                    
+                    # Add to queue
+                    new_path = path + [(ny, nx)]
+                    queue.append(((ny, nx), new_path))
+        
+        # If we can't find a path, create a direct one
+        self._create_direct_single_width_path(grid, start, end)
+
+    def _create_direct_single_width_path(self, grid: np.ndarray, start: Tuple[int, int], end: Tuple[int, int]) -> None:
         """
-        Add branching paths to the dungeon
+        Create a direct 1-cell-wide path between two points
+        
+        Args:
+            grid: The grid array to modify
+            start: Starting position (y, x)
+            end: Ending position (y, x)
+        """
+        y, x = start
+        end_y, end_x = end
+        
+        # Choose to go horizontal or vertical first (randomly)
+        if random.choice([True, False]):
+            # Move horizontally first, then vertically
+            while x != end_x:
+                x += 1 if end_x > x else -1
+                grid[y, x] = self.cell_types["PATH"]
+            
+            while y != end_y:
+                y += 1 if end_y > y else -1
+                grid[y, x] = self.cell_types["PATH"]
+        else:
+            # Move vertically first, then horizontally
+            while y != end_y:
+                y += 1 if end_y > y else -1
+                grid[y, x] = self.cell_types["PATH"]
+            
+            while x != end_x:
+                x += 1 if end_x > x else -1
+                grid[y, x] = self.cell_types["PATH"]
+
+    def _add_single_width_branches(self, grid: np.ndarray, branch_factor: float, dead_end_count: int) -> None:
+        """
+        Add 1-cell-wide branches to the main path
         
         Args:
             grid: The grid array to modify
             branch_factor: How branched the paths are (0.0 to 1.0)
-            dead_ends: Number of dead ends to add
+            dead_end_count: Number of additional dead ends to add
         """
-        # Find all path cells (candidates for branching)
+        height, width = grid.shape
+        
+        # Find all existing path cells
         path_cells = []
-        for y in range(1, grid.shape[0]-1):
-            for x in range(1, grid.shape[1]-1):
+        for y in range(1, height-1):
+            for x in range(1, width-1):
                 if grid[y, x] == self.cell_types["PATH"]:
                     path_cells.append((y, x))
         
-        # Shuffle path cells to get random branch starting points
+        # Shuffle to randomize branch starting points
         random.shuffle(path_cells)
         
-        # Calculate number of branches based on branch factor and grid size
-        max_branches = int(len(path_cells) * branch_factor) + dead_ends
+        # Calculate number of branches based on branch factor
+        num_branches = int(len(path_cells) * branch_factor) + dead_end_count
+        num_branches = min(num_branches, len(path_cells) * 2)  # Cap to reasonable number
         
-        branches_created = 0
-        for start_y, start_x in path_cells:
-            if branches_created >= max_branches:
+        branches_added = 0
+        
+        for y, x in path_cells:
+            if branches_added >= num_branches:
                 break
                 
-            # Try to create a branch from this cell
-            directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-            random.shuffle(directions)
-            
-            for dy, dx in directions:
-                # Check if we can branch in this direction
-                y, x = start_y, start_x
-                branch_length = random.randint(2, 4)  # Random branch length
-                branch_path = []
+            # Find available directions to add a branch
+            directions = []
+            for dy, dx in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                ny, nx = y + dy, x + dx
                 
-                for _ in range(branch_length):
-                    y += dy
-                    x += dx
+                # Check if there's a wall we can turn into a path
+                if (1 < ny < height-2 and 1 < nx < width-2 and 
+                    grid[ny, nx] == self.cell_types["WALL"]):
                     
-                    # Check if position is valid and not already a path
-                    if (0 < y < grid.shape[0]-1 and 
-                        0 < x < grid.shape[1]-1 and 
-                        grid[y, x] == self.cell_types["WALL"]):
-                        branch_path.append((y, x))
+                    # Check if the next cell in that direction is also a wall
+                    # (to ensure we don't connect to another path right away)
+                    ny2, nx2 = ny + dy, nx + dx
+                    if (0 < ny2 < height-1 and 0 < nx2 < width-1 and
+                        grid[ny2, nx2] == self.cell_types["WALL"]):
+                        directions.append((dy, dx))
+            
+            if directions:
+                # Choose a random direction
+                dy, dx = random.choice(directions)
+                
+                # Create a branch
+                branch_length = random.randint(2, 5)  # Length of 2-5 cells
+                
+                # First cell of branch
+                y1, x1 = y + dy, x + dx
+                grid[y1, x1] = self.cell_types["PATH"]
+                
+                # Continue branch
+                current_y, current_x = y1, x1
+                
+                for _ in range(1, branch_length):
+                    # Try to continue straight with high probability
+                    if random.random() < 0.7:
+                        next_dy, next_dx = dy, dx
                     else:
+                        # Try to turn (perpendicular to current direction)
+                        turn_options = [(dx, -dy), (-dx, dy)]
+                        next_dy, next_dx = random.choice(turn_options)
+                    
+                    next_y, next_x = current_y + next_dy, current_x + next_dx
+                    
+                    # Check if valid position for continuing branch
+                    if (1 < next_y < height-2 and 1 < next_x < width-2 and
+                        grid[next_y, next_x] == self.cell_types["WALL"]):
+                        
+                        # Also check if we're not connecting to another path
+                        connected_to_path = False
+                        for check_dy, check_dx in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                            if check_dy == -next_dy and check_dx == -next_dx:
+                                # Skip checking the cell we just came from
+                                continue
+                                
+                            check_y, check_x = next_y + check_dy, next_x + check_dx
+                            if (0 <= check_y < height and 0 <= check_x < width and
+                                grid[check_y, check_x] == self.cell_types["PATH"]):
+                                connected_to_path = True
+                                break
+                        
+                        if not connected_to_path:
+                            grid[next_y, next_x] = self.cell_types["PATH"]
+                            current_y, current_x = next_y, next_x
+                            # Update direction for next iteration if we turned
+                            dy, dx = next_dy, next_dx
+                        else:
+                            # Stop if we would connect to another path
+                            break
+                    else:
+                        # Stop if we reached an edge or another path
                         break
                 
-                # If we created a valid branch path, add it to the grid
-                if branch_path:
-                    for by, bx in branch_path:
-                        grid[by, bx] = self.cell_types["PATH"]
-                    
-                    branches_created += 1
-                    break  # Move to next path cell
+                branches_added += 1
     
     def _add_elements(self, grid: np.ndarray, trap_chance: float, is_final_floor: bool) -> None:
         """

@@ -499,34 +499,51 @@ class DungeonManager:
                 file=discord.File(fp=dungeon_image, filename="dungeon.png")
             )
             dungeon["message_id"] = message.id
+            
+            # Add movement controls
+            await message.add_reaction(self.direction_emojis["UP"])  # Up
+            await message.add_reaction(self.direction_emojis["DOWN"])  # Down
+            await message.add_reaction(self.direction_emojis["LEFT"])  # Left
+            await message.add_reaction(self.direction_emojis["RIGHT"])  # Right
+            
+            # Check if any player is on stairs, if so add check reaction
+            floor = dungeon["floors"][current_floor]
+            for player_id, pos in floor["player_positions"].items():
+                y, x = pos
+                cell_type = floor["grid"][y][x]
+                
+                if cell_type == self.cell_types["STAIRS_UP"]:
+                    await message.add_reaction("✅")
+                    break
         else:
-            # Edit the existing message
+            # Edit the existing message without clearing reactions
             await existing_message.edit(
                 content=f"🏰 **{dungeon['name']}** - Floor {current_floor + 1}/{dungeon['num_floors']}",
                 attachments=[discord.File(fp=dungeon_image, filename="dungeon.png")]
             )
-            message = existing_message
-        
-        # Add movement controls and clear existing reactions if needed
-        try:
-            await message.clear_reactions()
-        except:
-            pass
-        
-        await message.add_reaction(self.direction_emojis["UP"])  # Up
-        await message.add_reaction(self.direction_emojis["DOWN"])  # Down
-        await message.add_reaction(self.direction_emojis["LEFT"])  # Left
-        await message.add_reaction(self.direction_emojis["RIGHT"])  # Right
-        
-        # Check if any player is on stairs, if so add check reaction
-        floor = dungeon["floors"][current_floor]
-        for player_id, pos in floor["player_positions"].items():
-            y, x = pos
-            cell_type = floor["grid"][y][x]
             
-            if cell_type == self.cell_types["STAIRS_UP"]:
-                await message.add_reaction("✅")
-                break
+            # Check if we need to add or remove the check reaction
+            needs_check = False
+            floor = dungeon["floors"][current_floor]
+            for player_id, pos in floor["player_positions"].items():
+                y, x = pos
+                cell_type = floor["grid"][y][x]
+                
+                if cell_type == self.cell_types["STAIRS_UP"]:
+                    needs_check = True
+                    break
+                    
+            # Add check reaction if needed but not already present
+            has_check = False
+            for reaction in existing_message.reactions:
+                if str(reaction.emoji) == "✅":
+                    has_check = True
+                    break
+                    
+            if needs_check and not has_check:
+                await existing_message.add_reaction("✅")
+            elif not needs_check and has_check:
+                await existing_message.clear_reaction("✅")
     
     def save_dungeon_state(self, channel_id: str) -> bool:
         """

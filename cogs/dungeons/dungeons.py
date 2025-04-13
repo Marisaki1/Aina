@@ -378,7 +378,7 @@ class Dungeons(commands.Cog):
                         if self.encounter_manager.should_trigger_random_encounter(dungeon):
                             # Set cooldown
                             self.encounter_manager.set_cooldown(user.id, 
-                                                              self.settings["ENCOUNTERS"]["COOLDOWN_MOVES"] * 30)
+                                                            self.settings["ENCOUNTERS"]["COOLDOWN_MOVES"] * 30)
                             
                             # Roll for encounter type
                             encounter_type = random.choices(
@@ -401,11 +401,11 @@ class Dungeons(commands.Cog):
                                     reaction.message.channel, user
                                 )
             
-            # Update the dungeon view if needed
-            if moved:
-                await self.dungeon_manager.refresh_dungeon_view(reaction.message.channel)
-                
-            # Remove the user's reaction
+                # Update the dungeon view if needed
+                if moved:
+                    await self.dungeon_manager.refresh_dungeon_view(reaction.message.channel)
+                    
+            # Remove only the user's reaction
             try:
                 await reaction.remove(user)
             except:
@@ -415,7 +415,7 @@ class Dungeons(commands.Cog):
         elif str(reaction.emoji) == "✅":
             transition = await self.dungeon_manager.handle_floor_transition(reaction, user)
             
-            # Remove the user's reaction
+            # Remove only the user's reaction
             try:
                 await reaction.remove(user)
             except:
