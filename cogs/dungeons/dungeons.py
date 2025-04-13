@@ -68,11 +68,11 @@ class Dungeons(commands.Cog):
         
         Usage: !dungeon create [options]
         Options:
-          size: SMALL, MEDIUM, LARGE (default: MEDIUM)
-          complexity: EASY, NORMAL, HARD (default: NORMAL)
-          floors: SMALL, MEDIUM, LARGE, EXTREME (default: SMALL)
-          difficulty: EASY, NORMAL, HARD, LUNATIC (default: NORMAL)
-          name: Custom dungeon name
+        size: SMALL, MEDIUM, LARGE (default: MEDIUM)
+        complexity: EASY, NORMAL, HARD (default: NORMAL)
+        floors: SMALL, MEDIUM, LARGE, EXTREME (default: SMALL)
+        difficulty: EASY, NORMAL, HARD, LUNATIC (default: NORMAL)
+        name: Custom dungeon name
         """
         # Parse options
         size = "MEDIUM"

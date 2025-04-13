@@ -64,6 +64,17 @@ class Help(commands.Cog):
             )
             embed.add_field(name="🧙‍♂️ Class Commands", value=class_commands, inline=False)
             
+            dungeon_commands = (
+                "`!dungeon create` - Create a new dungeon adventure\n"
+                "`!dungeon join` - Join an active dungeon\n"
+                "`!dungeon leave` - Leave the current dungeon\n"
+                "`!dungeon status` - Show dungeon status\n"
+                "`!dungeon list` - List saved dungeons\n"
+                "`!dungeon load <id>` - Load a saved dungeon\n"
+                "`!dungeon end` - End the current dungeon (leader only)"
+            )
+            embed.add_field(name="🏰 Dungeon Commands", value=dungeon_commands, inline=False)
+
             help_commands = "`!help [command]` - Show detailed help for a specific command"
             embed.add_field(name="❓ Help Commands", value=help_commands, inline=False)
             
@@ -589,6 +600,85 @@ class Help(commands.Cog):
                 "`!class increase skill Wizard` - Improve your Wizard's skills"
             )
             embed.add_field(name="Usage", value=usage, inline=False)
+            await ctx.send(embed=embed)
+
+        # Dungeon commands help
+        elif command == "dungeon":
+            embed = discord.Embed(
+                title="!dungeon Commands Help",
+                description="Explore procedurally generated dungeons with your friends! 🏰",
+                color=discord.Color.purple()
+            )
+            
+            basic_commands = (
+                "`!dungeon create` - Create a new dungeon adventure\n"
+                "`!dungeon join` - Join an active dungeon\n"
+                "`!dungeon leave` - Leave the current dungeon\n"
+                "`!dungeon status` - Show dungeon status"
+            )
+            embed.add_field(name="🗺️ Basic Dungeon Commands", value=basic_commands, inline=False)
+            
+            advanced_commands = (
+                "`!dungeon list` - List saved dungeons\n"
+                "`!dungeon load <id>` - Load a saved dungeon\n"
+                "`!dungeon end` - End the current dungeon (leader only)"
+            )
+            embed.add_field(name="⚙️ Advanced Commands", value=advanced_commands, inline=False)
+            
+            creation_options = (
+                "**Creating Dungeons with Options:**\n"
+                "`!dungeon create size:<size> complexity:<complexity> floors:<floors> difficulty:<difficulty> name:<custom_name>`\n\n"
+                "**Options:**\n"
+                "- `size:` - SMALL, MEDIUM, LARGE (default: MEDIUM)\n"
+                "- `complexity:` - EASY, NORMAL, HARD (default: NORMAL)\n"
+                "- `floors:` - SMALL, MEDIUM, LARGE, EXTREME (default: SMALL)\n"
+                "- `difficulty:` - EASY, NORMAL, HARD, LUNATIC (default: NORMAL)\n"
+                "- `name:` - Custom dungeon name\n\n"
+                "**Example:** `!dungeon create size:LARGE complexity:HARD floors:LARGE difficulty:LUNATIC name:Dragon's Lair`"
+            )
+            embed.add_field(name="🛠️ Creation Options", value=creation_options, inline=False)
+            
+            movement_guide = (
+                "Use reaction emojis to move your character:\n"
+                "⬆️ - Move up\n"
+                "⬇️ - Move down\n"
+                "⬅️ - Move left\n"
+                "➡️ - Move right\n"
+                "✅ - Use stairs (when standing on stairs)"
+            )
+            embed.add_field(name="🚶 Movement Guide", value=movement_guide, inline=False)
+            
+            embed.set_footer(text="Type !help dungeon <subcommand> for details on specific dungeon commands")
+            await ctx.send(embed=embed)
+
+        elif command == "dungeon create":
+            embed = discord.Embed(
+                title="!dungeon create Command Help",
+                description="Create a new dungeon adventure for your party to explore",
+                color=discord.Color.gold()
+            )
+            usage = (
+                "**Format:** `!dungeon create [options]`\n\n"
+                "**Available Options:**\n"
+                "- `size:` - SMALL, MEDIUM, LARGE (default: MEDIUM)\n"
+                "- `complexity:` - EASY, NORMAL, HARD (default: NORMAL)\n"
+                "- `floors:` - SMALL, MEDIUM, LARGE, EXTREME (default: SMALL)\n"
+                "- `difficulty:` - EASY, NORMAL, HARD, LUNATIC (default: NORMAL)\n"
+                "- `name:` - Custom dungeon name\n\n"
+                "**Size affects:** Dungeon dimensions (10x10, 15x15, or 20x20)\n"
+                "**Complexity affects:** Path branching and dead ends\n"
+                "**Floors affects:** Number of floors (1-3, 4-6, 7-10, or 20)\n"
+                "**Difficulty affects:** Enemy and trap strength"
+            )
+            embed.add_field(name="Usage", value=usage, inline=False)
+            
+            examples = (
+                "`!dungeon create` - Create with default settings\n"
+                "`!dungeon create size:LARGE complexity:HARD` - Create a large, complex dungeon\n"
+                "`!dungeon create floors:EXTREME difficulty:LUNATIC` - Create a 20-floor, extremely difficult dungeon\n"
+                "`!dungeon create size:SMALL name:Goblin Cave` - Create a small dungeon with a custom name"
+            )
+            embed.add_field(name="Examples", value=examples, inline=False)
             await ctx.send(embed=embed)
 
 async def setup(bot):
