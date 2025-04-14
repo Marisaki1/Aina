@@ -114,23 +114,27 @@ class DungeonGenerator:
         # Initialize grid with ALL walls
         grid = np.full((height, width), self.cell_types["WALL"], dtype=int)
         
-        # Make sure width and height are odd to have walls on the borders
-        effective_width = width - 2 if width % 2 == 0 else width - 1
-        effective_height = height - 2 if height % 2 == 0 else height - 1
+        # Leave only a 1-cell border around the edges
+        effective_width = width - 2
+        effective_height = height - 2
         
-        # Calculate start position (always odd coordinates to be on grid)
-        # Start in top-left quadrant
-        start_x = random.randrange(1, effective_width // 2, 2)
-        start_y = random.randrange(1, effective_height // 2, 2)
+        # Make sure maze dimensions are odd (for proper corridors)
+        effective_width = effective_width - 1 if effective_width % 2 == 0 else effective_width
+        effective_height = effective_height - 1 if effective_height % 2 == 0 else effective_height
+        
+        # Calculate start position - closer to top-left corner
+        # Ensure coordinates are odd for proper grid alignment
+        start_x = random.randrange(1, max(3, effective_width // 4), 2)
+        start_y = random.randrange(1, max(3, effective_height // 4), 2)
         start_pos = (start_y, start_x)
         
-        # Calculate end position in the far opposite quadrant
-        end_x = random.randrange(effective_width // 2 + 1, effective_width, 2)
-        end_y = random.randrange(effective_height // 2 + 1, effective_height, 2)
+        # Calculate end position - closer to bottom-right corner
+        end_x = random.randrange(min(effective_width - 2, 3 * effective_width // 4), effective_width, 2)
+        end_y = random.randrange(min(effective_height - 2, 3 * effective_height // 4), effective_height, 2)
         end_pos = (end_y, end_x)
         
-        # Generate maze using recursive backtracker algorithm
-        grid = self._generate_true_maze(grid, effective_width, effective_height)
+        # Generate maze using recursive backtracker that fills the whole area
+        self._generate_full_maze(grid, 1, 1, effective_width, effective_height)
         
         # Ensure start and end positions are paths
         grid[start_pos[0], start_pos[1]] = self.cell_types["PATH"]
@@ -140,11 +144,11 @@ class DungeonGenerator:
         self._ensure_path_between(grid, start_pos, end_pos)
         
         # Add more connections to make the maze less perfect (based on branch_factor)
-        num_extra_connections = int(effective_width * effective_height * branch_factor * 0.01)
+        num_extra_connections = int(effective_width * effective_height * branch_factor * 0.02)
         self._add_extra_connections(grid, num_extra_connections)
         
-        # Remove some dead ends (opening walls) based on complexity
-        num_dead_ends_to_remove = dead_ends
+        # Remove some dead ends to create more loops
+        num_dead_ends_to_remove = dead_ends * 2  # Increase number to create more loops
         self._remove_dead_ends(grid, num_dead_ends_to_remove)
         
         # Mark start and end positions
@@ -174,6 +178,108 @@ class DungeonGenerator:
         
         return floor
 
+    def _generate_full_maze(self, grid, start_y, start_x, width, height):
+        """
+        Generate a maze that fills the entire available space
+        
+        Args:
+            grid: The grid to modify
+            start_y: Starting Y coordinate
+            start_x: Starting X coordinate
+            width: Width of the effective area
+            height: Height of the effective area
+        """
+        # Create a grid to track visited cells
+        visited = np.zeros((height + 1, width + 1), dtype=bool)
+        
+        # Queue for cell processing - start with full grid of cells
+        cells = []
+        for y in range(start_y, start_y + height, 2):
+            for x in range(start_x, start_x + width, 2):
+                if y < grid.shape[0] and x < grid.shape[1]:
+                    cells.append((y, x))
+        
+        # Shuffle the cells for more randomness
+        random.shuffle(cells)
+        
+        # Process each cell
+        for y, x in cells:
+            # Mark the cell as a path
+            if 0 <= y < grid.shape[0] and 0 <= x < grid.shape[1]:
+                grid[y, x] = self.cell_types["PATH"]
+                visited[y - start_y, x - start_x] = True
+        
+        # Connect the path cells with a spanning tree algorithm
+        self._connect_maze_cells(grid, start_y, start_x, visited)
+
+    def _connect_maze_cells(self, grid, start_y, start_x, visited):
+        """
+        Connect the path cells to form a connected maze
+        
+        Args:
+            grid: The grid to modify
+            start_y: Starting Y coordinate
+            start_x: Starting X coordinate
+            visited: Grid of visited cells
+        """
+        height, width = visited.shape
+        
+        # Use a spanning tree algorithm to connect all cells
+        # Start with a random cell
+        cells_to_connect = []
+        connected_cells = set()
+        
+        # Find all path cells
+        for y in range(visited.shape[0]):
+            for x in range(visited.shape[1]):
+                if visited[y, x]:
+                    real_y, real_x = y + start_y, x + start_x
+                    if 0 <= real_y < grid.shape[0] and 0 <= real_x < grid.shape[1]:
+                        if len(connected_cells) == 0:
+                            # Start with one cell
+                            connected_cells.add((real_y, real_x))
+                        else:
+                            # Add others to the list of cells to connect
+                            cells_to_connect.append((real_y, real_x))
+        
+        # Shuffle to randomize connections
+        random.shuffle(cells_to_connect)
+        
+        # Connect all cells
+        while cells_to_connect:
+            # Find a cell that can connect to our existing connected set
+            for i, (y, x) in enumerate(cells_to_connect):
+                # Check if this cell can connect to any connected cell
+                can_connect = False
+                connect_y, connect_x = None, None
+                
+                # Check all possible connections
+                for dy, dx in [(0, 2), (2, 0), (0, -2), (-2, 0)]:
+                    ny, nx = y + dy, x + dx
+                    if (ny, nx) in connected_cells:
+                        # Can connect here
+                        can_connect = True
+                        connect_y, connect_x = ny, nx
+                        break
+                
+                if can_connect:
+                    # Connect the cells
+                    wall_y = (y + connect_y) // 2
+                    wall_x = (x + connect_x) // 2
+                    
+                    if 0 <= wall_y < grid.shape[0] and 0 <= wall_x < grid.shape[1]:
+                        grid[wall_y, wall_x] = self.cell_types["PATH"]
+                    
+                    # Add this cell to connected set
+                    connected_cells.add((y, x))
+                    
+                    # Remove from cells to connect
+                    cells_to_connect.pop(i)
+                    break
+            else:
+                # If we can't connect any more cells, break
+                break
+            
     def _generate_true_maze(self, grid, width, height):
         """
         Generate a proper maze using the Recursive Backtracker algorithm
@@ -426,7 +532,7 @@ class DungeonGenerator:
   
     def _add_elements(self, grid, trap_chance, is_final_floor):
         """
-        Add elements to the dungeon (more controlled placement)
+        Add elements to the dungeon (better distributed)
         
         Args:
             grid: The grid to modify
@@ -435,7 +541,7 @@ class DungeonGenerator:
         """
         height, width = grid.shape
         
-        # Find all path cells (candidates for elements)
+        # Find all path cells (excluding special cells)
         path_cells = []
         for y in range(1, height - 1):
             for x in range(1, width - 1):
@@ -448,9 +554,9 @@ class DungeonGenerator:
         
         # Calculate number of each element based on grid size
         num_path_cells = len(path_cells)
-        num_chests = max(1, num_path_cells // 30)
-        num_traps = max(1, int(num_path_cells * trap_chance * 0.1))
-        num_enemies = max(2, num_path_cells // 20)
+        num_chests = max(1, num_path_cells // 25)  # More chests
+        num_traps = max(1, int(num_path_cells * trap_chance * 0.15))  # More traps
+        num_enemies = max(2, num_path_cells // 15)  # More enemies
         
         # Adjust for final floor
         if is_final_floor:
@@ -461,19 +567,84 @@ class DungeonGenerator:
         available_cells = path_cells.copy()
         random.shuffle(available_cells)
         
-        # Place elements
-        for i in range(min(num_chests, len(available_cells))):
-            y, x = available_cells.pop()
+        # Divide the grid into regions to ensure even distribution
+        regions = []
+        region_size = 5  # Size of each region
+        
+        for region_y in range(0, height, region_size):
+            for region_x in range(0, width, region_size):
+                region_cells = []
+                for y, x in available_cells:
+                    if (region_y <= y < region_y + region_size and 
+                        region_x <= x < region_x + region_size):
+                        region_cells.append((y, x))
+                
+                if region_cells:
+                    regions.append(region_cells)
+        
+        # Place elements throughout different regions
+        elements_placed = 0
+        
+        # Place chests
+        for _ in range(num_chests):
+            if not regions:
+                break
+            
+            region_idx = random.randint(0, len(regions) - 1)
+            if not regions[region_idx]:
+                regions.pop(region_idx)
+                continue
+                
+            y, x = random.choice(regions[region_idx])
             grid[y, x] = self.cell_types["CHEST"]
+            
+            # Remove cell from available cells
+            regions[region_idx].remove((y, x))
+            if (y, x) in available_cells:
+                available_cells.remove((y, x))
+            
+            elements_placed += 1
         
-        for i in range(min(num_traps, len(available_cells))):
-            y, x = available_cells.pop()
+        # Place traps
+        for _ in range(num_traps):
+            if not regions:
+                break
+            
+            region_idx = random.randint(0, len(regions) - 1)
+            if not regions[region_idx]:
+                regions.pop(region_idx)
+                continue
+                
+            y, x = random.choice(regions[region_idx])
             grid[y, x] = self.cell_types["TRAP"]
+            
+            # Remove cell from available cells
+            regions[region_idx].remove((y, x))
+            if (y, x) in available_cells:
+                available_cells.remove((y, x))
+            
+            elements_placed += 1
         
-        for i in range(min(num_enemies, len(available_cells))):
-            y, x = available_cells.pop()
+        # Place enemies
+        for _ in range(num_enemies):
+            if not regions:
+                break
+            
+            region_idx = random.randint(0, len(regions) - 1)
+            if not regions[region_idx]:
+                regions.pop(region_idx)
+                continue
+                
+            y, x = random.choice(regions[region_idx])
             grid[y, x] = self.cell_types["ENEMY"]
-
+            
+            # Remove cell from available cells
+            regions[region_idx].remove((y, x))
+            if (y, x) in available_cells:
+                available_cells.remove((y, x))
+            
+            elements_placed += 1
+                    
     def _extract_elements(self, grid: np.ndarray) -> Dict[str, List[Tuple[int, int]]]:
         """Extract element positions from the grid
         
