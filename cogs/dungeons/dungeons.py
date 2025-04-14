@@ -7,6 +7,8 @@ import json
 from datetime import datetime
 from typing import Dict, List, Tuple, Any, Optional
 
+import numpy as np
+
 import settings
 from .dungeon_manager import DungeonManager
 from .dungeon_generator import DungeonGenerator
@@ -424,6 +426,39 @@ class Dungeons(commands.Cog):
         # Handle encounter reactions
         else:
             await self.encounter_manager.handle_encounter_reaction(reaction, user)
+
+    @dungeon.command(name="reveal")
+    async def reveal_floor(self, ctx):
+        """Reveal the entire current floor by removing fog of war"""
+        channel_id = str(ctx.channel.id)
+        
+        # Check if a dungeon is active in this channel
+        if channel_id not in self.dungeon_manager.active_dungeons:
+            await ctx.send("❌ No active dungeon in this channel!")
+            return
+        
+        dungeon = self.dungeon_manager.active_dungeons[channel_id]
+        current_floor = dungeon["current_floor"]
+        floor = dungeon["floors"][current_floor]
+        
+        # Check if the user is the dungeon leader or has admin permissions
+        user_id = ctx.author.id
+        if user_id != dungeon["leader_id"] and not ctx.author.guild_permissions.administrator:
+            await ctx.send("❌ Only the dungeon leader or a server admin can reveal the floor!")
+            return
+        
+        # Set all cells to revealed
+        height = floor["height"]
+        width = floor["width"]
+        
+        # Create a new array of all True values
+        revealed = np.ones((height, width), dtype=bool).tolist()
+        floor["revealed"] = revealed
+        
+        await ctx.send(f"✨ {ctx.author.mention} revealed the entire floor!")
+        
+        # Refresh the dungeon view
+        await self.dungeon_manager.refresh_dungeon_view(ctx.channel)
 
 async def setup(bot):
     await bot.add_cog(Dungeons(bot))
