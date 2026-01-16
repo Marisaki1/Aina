@@ -35,7 +35,7 @@ const HexGame = () => {
     '-2,0': { type: 'forest', color: '#228B22', icon: 'tree', resources: { stone: 2, iron: 1 } },
     '-1,-1': { type: 'forest', color: '#228B22', icon: 'tree', resources: { stone: 2, iron: 1 } },
     
-    // Ring 3
+    // Ring 3 asd
     '0,-3': { type: 'mountain', color: '#CD853F', icon: 'mountain', resources: { wheat: 2 } },
     '1,-3': { type: 'water', color: '#4682B4', icon: 'water', resources: { fish: 2, water: 3 } },
     '2,-3': { type: 'water', color: '#4682B4', icon: 'water', resources: { wheat: 2 } },
