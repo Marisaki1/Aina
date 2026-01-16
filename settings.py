@@ -67,6 +67,7 @@ DUNGEON_SETTINGS = {
     },
     
     # Interactive Elements
+    # In settings.py, add these to your ELEMENTS section
     "ELEMENTS": {
         "STAIRS": "🪜",              # Stairs/ladder emoji
         "CHEST": "🎁",               # Chest emoji
@@ -74,7 +75,15 @@ DUNGEON_SETTINGS = {
         "ENEMY": "👹",               # Enemy emoji
         "KEY": "🔑",                 # Key emoji
         "DOOR": "🚪",                # Door emoji
-        "INTERACT": "✅"             # Interaction confirmation emoji
+        "INTERACT": "✅",            # Interaction confirmation emoji
+        "START": "🏠",               # Start position
+        "END": "🏆",                 # End position (goal)
+        "STAIRS_UP": "⬆️",           # Upward stairs 
+        "STAIRS_DOWN": "⬇️",         # Downward stairs
+        "PLAYER": "🧙",              # Player character
+        "WALL": "🧱",                # Wall (though this might be visually heavy)
+        "PATH": "⬜",                # Path (empty space)
+        "FOG": "🌫️"                 # Fog of war
     },
     
     # Fog of War
@@ -165,3 +174,4 @@ CELL_TYPES = {
     "DOOR": 10,
     "FOG": 11
 }
+

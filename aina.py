@@ -40,6 +40,12 @@ async def load_cogs():
         # Load dungeons cog
         await bot.load_extension("cogs.dungeons.dungeons")
         
+        # Load emoji tracking cog
+        await bot.load_extension("cogs.emoji_tracker")
+        
+        # Load admin commands cog
+        await bot.load_extension("cogs.admincommands.admincommands")
+        
         print("✅ All cogs loaded successfully!")
     except Exception as e:
         print(f"❌ Error loading cogs: {e}")
